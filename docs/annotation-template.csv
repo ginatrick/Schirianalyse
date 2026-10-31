@@ -1,0 +1,2 @@
+match_id,video_time,game_minute,event_type,whistled,official,decision,foul_type,sanction,ref_x_m,ref_y_m,notes
+beispiel-2026-11-01,00:12:34,12,foul,yes,referee,foul,tackle,none,,,Beispielzeile – löschen
