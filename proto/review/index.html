@@ -71,6 +71,7 @@ form button{border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
 const DEC = {foul:"Foul",no_foul:"Kein Foul",unclear:"Unklar",not_a_foul_situation:"Keine Foulsituation",relevant:"Relevant"};
 const FOUL = {tackle:"Tackling",push:"Stoßen",hold:"Halten",trip:"Beinstellen",charge:"Rempeln",strike:"Schlagen",handball:"Handspiel",dangerous_play:"Gefährliches Spiel",impeding:"Behindern",other:"Sonstiges",none:"–"};
 const SAN = {none:"Keine Karte",yellow:"Gelb",red:"Rot"};
+const PITCH = {grossfeld:"Großfeld",verkuerzt:"verkürztes Großfeld",kleinfeld:"Kleinfeld"};
 const CTYPE = {foul_suspect:"Foulverdacht",handball_suspect:"Handspielverdacht",fall:"Sturz",hard_duel:"Harter Zweikampf",flag:"Fahne",card:"Karte",confrontation:"Rudelbildung",other:"Sonstiges"};
 const S = {matchId:null,data:null,role:"self",filter:"open",idx:0,list:[]};
 const $ = s => document.querySelector(s);
@@ -87,7 +88,8 @@ async function init(){
   try { const r = localStorage.getItem("schiri-role"); if(r){ S.role = r; setSeg("#role", r); } } catch(e){}
   load(matches[0].id);
 }
-function label(m){ const x = m.match || {}; return [x.date, x.home && x.away ? `${x.home} – ${x.away}` : m.id].filter(Boolean).join(" · "); }
+function label(m){ const x = m.match || {}, p = x.pitch || {};
+  return [x.date, x.home && x.away ? `${x.home} – ${x.away}` : m.id, PITCH[p.type], x.referee].filter(Boolean).join(" · "); }
 function seg(sel, cb){ document.querySelectorAll(sel+" button").forEach(b => b.onclick = () => { setSeg(sel, b.dataset.v); if(sel==="#role"){ try{localStorage.setItem("schiri-role", b.dataset.v)}catch(e){} } cb(b.dataset.v); }); }
 function setSeg(sel, v){ document.querySelectorAll(sel+" button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); }
 async function load(id){ S.matchId = id; S.data = await (await fetch(`/api/matches/${encodeURIComponent(id)}`)).json(); rebuild(true); }

@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from . import media
-from .config import Settings
+from .config import Settings, pitch_label
 
 RULES = (Path(__file__).parent / "rules" / "kurzfassung.md").read_text(encoding="utf-8")
 
@@ -37,8 +37,13 @@ def _window(scene: dict) -> tuple[float, float]:
     return t - 3.0, t + 3.0
 
 
-def _facts(scene: dict) -> str:
+def _facts(scene: dict, meta: dict | None = None) -> str:
+    meta = meta or {}
     lines = [f"Szene {scene['id']} bei {scene['time_label']} im Video."]
+    context = "; ".join(x for x in (pitch_label(meta), meta.get("league")) if x)
+    if context:
+        lines.append(f"Spielkontext: {context}. Bei Jugend- und Kleinfeldspielen können Durchführungsbestimmungen abweichen; "
+                     "wenn das die Bewertung beeinflusst, nenne es in der Begründung oder antworte mit unclear.")
     if scene["type"] == "whistled":
         w = scene.get("whistle") or {}
         lines.append(f"Ein Pfiff ist zu hören (Dauer {w.get('duration', 0):.1f} s). Das letzte Bild liegt etwa 1 s nach dem Pfiff.")
@@ -77,7 +82,7 @@ def _call(client, model: str, images: list[Path], facts: str) -> tuple[dict, dic
     return _parse(text), usage
 
 
-def assess_scene(scene: dict, proxy: Path, work: Path, s: Settings) -> tuple[dict, dict]:
+def assess_scene(scene: dict, proxy: Path, work: Path, s: Settings, meta: dict | None = None) -> tuple[dict, dict]:
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise SystemExit("ANTHROPIC_API_KEY fehlt (.env). Ohne Key: analyze mit --no-assess starten.")
@@ -86,7 +91,7 @@ def assess_scene(scene: dict, proxy: Path, work: Path, s: Settings) -> tuple[dic
     client = anthropic.Anthropic(api_key=key)
     start, end = _window(scene)
     frames = media.extract_frames(proxy, work.parent / "frames" / work.name, start, end, count=10, width=1024)
-    facts = _facts(scene)
+    facts = _facts(scene, meta)
     result, usage = _call(client, s.claude_model, frames, facts)
     result["model"] = s.claude_model
     if result["confidence"] < s.escalate_below and s.claude_model_strong:

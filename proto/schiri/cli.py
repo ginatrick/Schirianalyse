@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from . import pipeline
-from .config import DATA_DIR, Settings
+from .config import DATA_DIR, PITCH_TYPES, Settings
 
 
 def _match_id(args) -> str:
@@ -26,6 +26,19 @@ def cmd_analyze(args) -> None:
     for k in ("date", "home", "away", "referee", "league"):
         if getattr(args, k):
             meta[k] = getattr(args, k)
+    if args.pitch or args.players or args.pitch_length or args.pitch_width:
+        pitch = meta.get("pitch", {})
+        if args.pitch:
+            pitch["type"] = args.pitch
+        if args.players:
+            pitch["players"] = args.players
+        if args.pitch_length:
+            pitch["length_m"] = args.pitch_length
+        if args.pitch_width:
+            pitch["width_m"] = args.pitch_width
+        meta["pitch"] = pitch
+    if not (meta.get("pitch") or {}).get("type"):
+        pipeline.log("Hinweis: keine Spielform angegeben (--pitch grossfeld|verkuerzt|kleinfeld)")
     meta.setdefault("id", m.id)
     m.write_meta(meta)
 
@@ -86,7 +99,11 @@ def main(argv: list[str] | None = None) -> None:
     a.add_argument("--home")
     a.add_argument("--away")
     a.add_argument("--referee")
-    a.add_argument("--league")
+    a.add_argument("--league", help="Liga/Altersklasse, z. B. 'C-Junioren Landesklasse'")
+    a.add_argument("--pitch", choices=list(PITCH_TYPES), help="Spielform: grossfeld, verkuerzt, kleinfeld")
+    a.add_argument("--players", type=int, help="Spieler pro Team auf dem Feld, z. B. 11, 9, 7")
+    a.add_argument("--pitch-length", type=float, help="Feldlänge in Metern (gemessen)")
+    a.add_argument("--pitch-width", type=float, help="Feldbreite in Metern (gemessen)")
     a.add_argument("--no-gemini", action="store_true", help="keine Kandidatensuche mit Gemini")
     a.add_argument("--no-assess", action="store_true", help="keine Bewertungsvorschläge mit Claude")
     a.add_argument("--assess-limit", type=int, default=None, help="höchstens N Szenen bewerten (Kosten testen)")

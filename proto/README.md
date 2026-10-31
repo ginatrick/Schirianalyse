@@ -35,7 +35,7 @@ cd proto
 .venv\Scripts\activate
 
 # 1. Spiel analysieren (Video bleibt, wo es liegt)
-python -m schiri analyze "D:\Videos\2026-11-01 Heim - Gast.mp4" --match-id 2026-11-01-heim-gast --date 2026-11-01 --home "FC Heim" --away "SV Gast" --referee "Max Mustermann"
+python -m schiri analyze "D:\Videos\2026-11-01 Heim - Gast.mp4" --match-id 2026-11-01-heim-gast --date 2026-11-01 --home "FC Heim" --away "SV Gast" --referee "Max Mustermann" --league "C-Junioren Landesklasse" --pitch grossfeld --players 11
 
 # 2. Sichtung starten, dann http://localhost:8765 öffnen
 python -m schiri serve
@@ -43,6 +43,11 @@ python -m schiri serve
 # Vom Handy im selben WLAN (Windows-Firewall fragt einmal nach)
 python -m schiri serve --host 0.0.0.0
 ```
+
+Spielform und Feld:
+- `--pitch grossfeld | verkuerzt | kleinfeld` – Spielform; geht in die KI-Suche und die Bewertungsvorschläge ein
+- `--players 11` – Spieler pro Team auf dem Feld (z. B. 11, 9, 7)
+- `--pitch-length 100 --pitch-width 64` – gemessene Feldmaße in Metern; werden später für Laufwege und Distanzen gebraucht, deshalb am besten einmal pro Platz ausmessen
 
 Weitere Befehle:
 - `--no-gemini` / `--no-assess` – KI-Schritte auslassen

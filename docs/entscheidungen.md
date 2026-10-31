@@ -4,6 +4,7 @@ Stand 31.10.2026. Neue Entscheidungen oben ergänzen.
 
 | Datum | Thema | Entscheidung |
 | --- | --- | --- |
+| 2026-10-31 | Spielform | Pro Spiel Großfeld / verkürztes Großfeld / Kleinfeld, Spieler pro Team und gemessene Feldmaße erfassen; fließt in KI-Kontext und Meter-Umrechnung ein |
 | 2026-10-31 | Rohentwurf | Erst lokaler Prototyp in `proto/` ohne Vercel/Supabase: Pfiff-Erkennung lokal, Kandidaten über Gemini (ganzes Spiel), Bewertungsvorschläge über Claude, Swipe-Sichtung im Browser; Tracking später über Colab |
 | 2026-10-31 | Lizenzen | Produktiv-Worker ohne AGPL/GPL: RF-DETR (Apache-2.0) statt Ultralytics YOLO, supervision (MIT), SAM 2 (Apache-2.0); YOLO und opensportslib nur offline für Vergleiche (Details: docs/lizenzen.md) |
 | 2026-10-31 | Betrieb | Von Anfang an online (Vercel, Supabase Cloud EU, Cloud-GPU), keine lokale Phase |

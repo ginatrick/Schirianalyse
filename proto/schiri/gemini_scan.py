@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from . import media
-from .config import Settings
+from .config import Settings, pitch_label
 
 PROMPT = """Du bist Assistent eines Schiedsrichter-Beobachters. Das Video zeigt einen Ausschnitt eines Amateur-Fußballspiels,
 aufgenommen mit einer automatischen Kamera (Ton enthalten). Finde alle Situationen, die ein Beobachter prüfen sollte:
@@ -24,6 +24,11 @@ Gib NUR JSON zurück, eine Liste von Objekten:
   "whistle_heard": true|false, "location": "links|mitte|rechts", "description": "kurz, deutsch, max 20 Wörter",
   "confidence": 0.0-1.0}]
 "time" ist die Zeit im Videoausschnitt. Lieber eine Situation zu viel als eine zu wenig. Keine Namen, keine Rückennummern."""
+
+
+def _context(meta: dict) -> str:
+    parts = [x for x in (pitch_label(meta), meta.get("league")) if x]
+    return "; ".join(parts)
 
 
 def _parse_time(s: str) -> float | None:
@@ -46,7 +51,7 @@ def _parse_json(text: str) -> list[dict]:
     return [d for d in data if isinstance(d, dict)]
 
 
-def scan(video: Path, duration_s: float, work: Path, s: Settings) -> tuple[list[dict], dict]:
+def scan(video: Path, duration_s: float, work: Path, s: Settings, meta: dict | None = None) -> tuple[list[dict], dict]:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise SystemExit("GEMINI_API_KEY fehlt (.env). Ohne Key: analyze mit --no-gemini starten.")
@@ -54,6 +59,8 @@ def scan(video: Path, duration_s: float, work: Path, s: Settings) -> tuple[list[
     from google.genai import types
 
     client = genai.Client(api_key=key)
+    context = _context(meta or {})
+    prompt = PROMPT + (f"\nSpielkontext: {context}." if context else "")
     chunk = s.gemini_chunk_s
     n_chunks = max(1, math.ceil(duration_s / chunk))
     candidates: list[dict] = []
@@ -73,7 +80,7 @@ def scan(video: Path, duration_s: float, work: Path, s: Settings) -> tuple[list[
                 f = client.files.get(name=f.name)
             resp = client.models.generate_content(
                 model=s.gemini_model,
-                contents=[f, PROMPT],
+                contents=[f, prompt],
                 config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
             )
         finally:

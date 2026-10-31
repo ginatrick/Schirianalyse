@@ -70,7 +70,7 @@ Der Schiedsrichter ist der Einstiegspunkt: Über `referees` → `match_officials
 | `user_roles` | `user_id`, Rolle (Administrator, Beobachter, Schiedsrichter) | Rolleneinteilung; eine Person kann mehrere Rollen haben |
 | `referees` | Name, Verband/Kreis, `user_id` (verknüpftes Konto), Trikotfarben | Schiri-Profil; die Verknüpfung erlaubt die Selbstbewertung |
 | `observer_assignments` | `observer_id`, `referee_id` oder `match_id`, gültig von/bis | Welcher Beobachter welche Schiris oder einzelne Spiele bewertet |
-| `matches` | Datum, Heim, Gast, Liga/Altersklasse, Ort | Das Spiel |
+| `matches` | Datum, Heim, Gast, Liga/Altersklasse, Ort, Spielform (Großfeld / verkürztes Großfeld / Kleinfeld), Spieler pro Team, Feldlänge und -breite in m | Das Spiel; Spielform und Maße steuern Kalibrierung und KI-Kontext |
 | `match_officials` | `match_id`, `referee_id`, Funktion (Schiedsrichter, Assistent 1, Assistent 2) | Gespann pro Spiel; Assistenten-Einsätze erscheinen ebenfalls im Profil |
 | `videos` | `match_id`, Datei, Quelle (eigene / fremde Aufnahme), Panorama ja/nein, FPS, Dauer, Kalibrierung | Original und Proxy-Video |
 | `jobs` | `video_id`, Schritt, Status, Fortschritt, Fehler | Job-Queue für den Analyse-Worker |
@@ -106,6 +106,7 @@ Schiri und Assistenten werden einmal per Klick ausgewählt und danach über Trik
 - **Wiedererkennung:** Farbmodell (Trikot, Hose, Stutzen) plus Erscheinungsmerkmal. Assistenten tragen meist dieselbe Farbe wie der Schiri und werden über ihre Position unterschieden: Jeder bewegt sich entlang einer Seitenlinie.
 - **Plausibilitätsregeln:** Ein Torwart in ähnlicher Farbe bleibt meist im Strafraum; Personen außerhalb des Spielfelds außer den Assistenten werden ausgeschlossen. Lücken werden markiert, nicht überbrückt.
 - **Korrektur:** Eine Zeitleiste zeigt pro Person, wann sie erkannt war. Falsche Zuordnungen lassen sich abwählen und neu anklicken.
+- **Spielform und Feldmaße:** Großfeld, verkürztes Großfeld oder Kleinfeld plus gemessene Maße des Platzes sind die Grundlage der Umrechnung in Meter. Feldmaße einmal pro Platz speichern und wiederverwenden.
 - **Eigene Aufnahmen (Panorama):** Alle drei sind fast durchgehend im Bild; eine Kalibrierung pro Spiel reicht. Laufweg und Distanz sind hier am genauesten.
 - **Fremde Aufnahmen (Follow-Cam):** Kalibrierung pro Frame; Schiri und besonders Assistenten sind oft außerhalb des Bildes. Bei zu geringer Abdeckung zeigt das Tool keine Distanz statt einer falschen.
 - **Laufweg und Distanz:** Positionen werden geglättet (Kalman-Filter), sonst addiert Bildrauschen Phantom-Meter. Gezählt werden nur sichtbare Abschnitte, der gemessene Zeitanteil wird ausgewiesen.

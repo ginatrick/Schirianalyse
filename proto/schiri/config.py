@@ -57,6 +57,28 @@ class Settings:
     escalate_below: float = float(os.environ.get("ESCALATE_BELOW", "0.6"))
 
 
+# Spielformen. Feldmaße variieren je Platz: echte Maße mit --pitch-length/--pitch-width angeben,
+# sonst gelten die Maße als unbekannt (wichtig für spätere Laufwege in Metern).
+PITCH_TYPES = {
+    "grossfeld": "Großfeld",
+    "verkuerzt": "verkürztes Großfeld",
+    "kleinfeld": "Kleinfeld",
+}
+
+
+def pitch_label(meta: dict) -> str:
+    """Short description used in KI prompts and the review header, e.g. 'Kleinfeld, 7 gegen 7, 55 x 35 m'."""
+    p = meta.get("pitch") or {}
+    if not p.get("type"):
+        return ""
+    parts = [PITCH_TYPES.get(p["type"], p["type"])]
+    if p.get("players"):
+        parts.append(f"{p['players']} gegen {p['players']}")
+    if p.get("length_m") and p.get("width_m"):
+        parts.append(f"{p['length_m']:g} x {p['width_m']:g} m")
+    return ", ".join(parts)
+
+
 def match_dir(match_id: str) -> Path:
     d = DATA_DIR / match_id
     d.mkdir(parents=True, exist_ok=True)

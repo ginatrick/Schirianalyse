@@ -82,7 +82,7 @@ def step_gemini(m: Match, s: Settings, force: bool = False) -> dict:
     from . import gemini_scan
     t0 = time.time()
     imp = m.result("import")
-    cands, usage = gemini_scan.scan(Path(imp["source"]), imp["duration_s"], m.step_dir("gemini_scan"), s)
+    cands, usage = gemini_scan.scan(Path(imp["source"]), imp["duration_s"], m.step_dir("gemini_scan"), s, m.meta)
     log(f"{len(cands)} Kandidaten von Gemini")
     return m.save("gemini_scan", {"candidates": cands, "usage": usage, "model": s.gemini_model}, t0)
 
@@ -126,7 +126,7 @@ def step_assess(m: Match, s: Settings, limit: int | None, force: bool = False) -
             continue
         if limit is not None and done >= limit:
             continue
-        sc["ai"], usage = assess.assess_scene(sc, proxy, m.step_dir("assessment") / window_key(sc), s)
+        sc["ai"], usage = assess.assess_scene(sc, proxy, m.step_dir("assessment") / window_key(sc), s, m.meta)
         for k in ("input_tokens", "output_tokens"):
             usage_total[k] += usage.get(k, 0)
         usage_total["calls"] += usage.get("calls", 1)
