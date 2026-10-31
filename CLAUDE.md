@@ -9,11 +9,12 @@ Web-Tool zur Spielanalyse für Schiedsrichter auf Basis von Veo-Videos: findet g
 - Externe Skills einmalig installieren: `scripts/install-skills.ps1`
 
 ## Stand
-Planung abgeschlossen. Aktuell: **Phase 0 (Vorbereitung und Testdaten)**, danach Phase 1 (Grundgerüst online).
+Phase 0 läuft. Parallel gibt es einen **lokalen Rohentwurf in `proto/`** (Pfiff-Erkennung, Gemini-Kandidaten, Claude-Vorschläge, Swipe-Sichtung, ohne Vercel/Supabase) – Anleitung in `proto/README.md`. Danach Phase 1 (Grundgerüst online).
 
 ## Stack
 - `apps/web` – Next.js (App Router, TypeScript), Hosting Vercel
 - `supabase` – Supabase Cloud, EU-Region: Postgres, Auth, Storage, Row Level Security; Schema nur über Migrationen
+- `proto` – lokaler Rohentwurf (Python-Pipeline + Review-Seite); die Logik wandert später in `worker`
 - `worker` – Python-Analyse-Worker (PyTorch, ffmpeg), läuft auf Cloud-GPU (RunPod Serverless, EU) bei Bedarf
 - KI-Bewertung über Online-API, hinter einer austauschbaren Schnittstelle (Claude vs. Gemini wird in Phase 5 an Testszenen verglichen)
 
