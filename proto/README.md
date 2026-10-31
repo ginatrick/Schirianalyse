@@ -48,6 +48,8 @@ Der Browser öffnet `http://localhost:8765`. Dort:
 
 Oben in der Liste nach Schiedsrichter filtern. *Bearbeiten* ändert Spieldaten, Gespann und Feld, ohne neu zu analysieren.
 
+**Abbrechen** auf der Karte stoppt eine laufende oder wartende Analyse. Fertige Schritte und bereits bezahlte KI-Vorschläge bleiben gespeichert, *Fortsetzen* macht dort weiter. Ein KI-Aufruf, der beim Abbrechen gerade unterwegs ist, wird nicht mehr abgewartet, kann bei OpenRouter aber noch berechnet werden.
+
 Die Analyse läuft, solange das Fenster mit dem Server offen ist. Wird es mittendrin geschlossen, steht das Spiel beim nächsten Start auf „Fehler“ und lässt sich mit *Erneut starten* fortsetzen.
 
 Vom Handy im selben WLAN sichten (Windows-Firewall fragt einmal nach): `python -m schiri serve --host 0.0.0.0`, dann `http://<PC-IP>:8765`. Spiele anlegen und Analysen starten geht nur am PC selbst; vom Handy aus kann nur gesichtet und bewertet werden.

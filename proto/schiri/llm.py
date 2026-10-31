@@ -11,6 +11,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from .logs import run_cancellable, sleep
 
 BASE_URL = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
 
@@ -52,8 +53,10 @@ def chat(model: str, content: list[dict], system: str | None = None, max_tokens:
     last = None
     for attempt in range(retries):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
+            def call():
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            data = run_cancellable(call)
             if "error" in data:
                 raise RuntimeError(data["error"])
             text = data["choices"][0]["message"].get("content") or ""
@@ -72,5 +75,5 @@ def chat(model: str, content: list[dict], system: str | None = None, max_tokens:
                 break
         except (urllib.error.URLError, TimeoutError, RuntimeError) as e:
             last = str(e)
-        time.sleep(5 * (attempt + 1))
+        sleep(5 * (attempt + 1))
     raise RuntimeError(f"OpenRouter-Aufruf fehlgeschlagen ({model}): {last}")

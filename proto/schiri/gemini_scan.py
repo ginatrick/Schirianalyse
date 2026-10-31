@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from . import media
+from . import logs
 from .logs import log
 from .config import Settings, pitch_label
 
@@ -109,12 +110,12 @@ def _direct_asker(s: Settings, prompt: str):
         f = client.files.upload(file=str(part))
         try:
             while getattr(f.state, "name", str(f.state)) == "PROCESSING":
-                time.sleep(5)
+                logs.sleep(5)
                 f = client.files.get(name=f.name)
-            resp = client.models.generate_content(
+            resp = logs.run_cancellable(lambda: client.models.generate_content(
                 model=s.scan_model, contents=[f, prompt],
                 config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
-            )
+            ))
         finally:
             try:
                 client.files.delete(name=f.name)   # nothing stays at Google longer than needed

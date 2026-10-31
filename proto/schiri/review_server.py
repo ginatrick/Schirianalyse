@@ -92,7 +92,8 @@ def _match_summary(d: Path) -> dict:
     analysis = dict(meta.get("analysis", {}))
     if job:
         analysis.update({"status": job["status"], "step_label": job["step_label"], "error": job["error"],
-                         "started_at": job["started_at"], "last_log": job["log"][-1] if job["log"] else ""})
+                         "started_at": job["started_at"], "last_log": job["log"][-1] if job["log"] else "",
+                         "cancel_requested": job["cancel_requested"]})
     roles = {"self": 0, "observer": 0}
     for key in reviews:
         role = key.rsplit(":", 1)[-1]
@@ -206,7 +207,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(data)
             if m := re.match(r"^/api/matches/([^/]+)/job$", path):
                 job = JOBS.get(m.group(1)) if JOBS else None
-                return self._json(job or {"status": "none"})
+                return self._json({k: v for k, v in job.items() if k != "cancel"} if job else {"status": "none"})
             if path == "/api/suggestions":
                 refs, leagues, teams = set(), set(), set()
                 if DATA_DIR.exists():
@@ -256,6 +257,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._update_meta(m.group(1), self._body())
             if m := re.match(r"^/api/matches/([^/]+)/(analyze|assess)$", path):
                 return self._start(m.group(1), m.group(2), self._body())
+            if m := re.match(r"^/api/matches/([^/]+)/cancel$", path):
+                job = JOBS.cancel(m.group(1))
+                if not job:
+                    return self._error("Für dieses Spiel läuft nichts.", HTTPStatus.NOT_FOUND)
+                return self._json({"ok": True, "status": job["status"]})
             self.send_error(HTTPStatus.NOT_FOUND)
         except (ValueError, json.JSONDecodeError) as e:
             self._error(f"Ungültige Anfrage: {e}")

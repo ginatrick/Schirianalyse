@@ -128,6 +128,7 @@ def step_assess(m: Match, s: Settings, limit: int | None, force: bool = False) -
             usage_total[k] += usage.get(k, 0) or 0
         usage_total["calls"] += usage.get("calls", 1)
         done += 1
+        m.save("assessment", {"scenes": scs, "usage": usage_total, "partial": True}, t0)  # nothing paid is lost on cancel
         log(f"Bewertet {sc['id']} ({sc['time_label']}): {sc['ai'].get('decision')} ({sc['ai'].get('confidence')})")
     return m.save("assessment", {"scenes": scs, "usage": usage_total}, t0)
 

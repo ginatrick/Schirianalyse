@@ -4,7 +4,10 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
+
+from .logs import Cancelled, cancel_event
 
 
 def _bin(name: str) -> str:
@@ -15,9 +18,30 @@ def _bin(name: str) -> str:
 
 
 def _run(args: list[str]) -> None:
-    proc = subprocess.run(args, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise RuntimeError(f"Befehl fehlgeschlagen: {' '.join(args[:6])} ...\n{proc.stderr[-2000:]}")
+    """Run ffmpeg. The last argument is the output file; it is removed again if the run
+    fails or is cancelled, so a half-written clip is never mistaken for a finished one."""
+    ev = cancel_event()
+    with tempfile.TemporaryFile() as err:
+        proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=err)
+        while True:
+            try:
+                proc.wait(timeout=0.5)
+                break
+            except subprocess.TimeoutExpired:
+                if ev is not None and ev.is_set():
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait()
+                    Path(args[-1]).unlink(missing_ok=True)
+                    raise Cancelled()
+        if proc.returncode != 0:
+            Path(args[-1]).unlink(missing_ok=True)
+            err.seek(0)
+            tail = err.read().decode("utf-8", "replace")[-2000:]
+            raise RuntimeError(f"Befehl fehlgeschlagen: {' '.join(args[:6])} ...\n{tail}")
 
 
 def probe(video: Path) -> dict:

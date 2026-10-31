@@ -162,7 +162,8 @@ async function viewList(){
       <select id="ref" aria-label="Schiedsrichter"><option value="">Alle Schiedsrichter</option>${refs.map(r => `<option ${r===ref?"selected":""}>${esc(r)}</option>`).join("")}</select>
     </div>${sum}<div id="cards">${shown.map(card).join("")}</div>`;
   $("#ref").onchange = e => { store.set("schiri-ref", e.target.value); viewList(); };
-  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => listAction(b.dataset.act, b.dataset.id));
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => listAction(b.dataset.act, b.dataset.id, b.dataset.kind));
+  clearInterval(POLL); POLL = null;
   if(list.some(x => ["queued","running"].includes(x.analysis.status))) POLL = setInterval(refreshCards, 3000);
 }
 async function refreshCards(){
@@ -172,7 +173,7 @@ async function refreshCards(){
     const el = document.getElementById("m-" + x.id);
     if(el){ const tmp = document.createElement("div"); tmp.innerHTML = card(x); el.replaceWith(tmp.firstElementChild); }
   }
-  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => listAction(b.dataset.act, b.dataset.id));
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => listAction(b.dataset.act, b.dataset.id, b.dataset.kind));
   if(!list.some(x => ["queued","running"].includes(x.analysis.status))){ clearInterval(POLL); POLL = null; }
 }
 function card(x){
@@ -183,9 +184,13 @@ function card(x){
     const secs = a.started_at ? Math.round(Date.now()/1000 - a.started_at) : 0;
     status = `<div class="status"><b>${st === "queued" ? "Wartet auf Start" : esc(a.step_label || "Analyse läuft")}</b>${secs ? ` · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")} min` : ""}
       <div class="bar"><i></i></div><span class="muted">${esc((a.last_log || "").replace(/^\[[\d:]+\]\s*/, ""))}</span></div>`;
+    if(CFG.local && !a.cancel_requested) actions += `<button class="btn small" data-act="cancel" data-id="${esc(x.id)}">Abbrechen</button>`;
+  } else if(st === "cancelled"){
+    status = `<div class="status muted">Abgebrochen.${x.scenes ? ` ${x.scenes} Szenen vom letzten vollständigen Lauf.` : ""} Fertige Schritte bleiben gespeichert – „Fortsetzen“ macht dort weiter.</div>`;
+    if(CFG.local) actions += `<button class="btn small" data-act="rerun" data-kind="${esc(a.kind || "")}" data-id="${esc(x.id)}">Fortsetzen</button>`;
   } else if(st === "error"){
     status = `<div class="status err">Fehler: ${esc(a.error)}</div>`;
-    if(CFG.local) actions += `<button class="btn small" data-act="rerun" data-id="${esc(x.id)}">Erneut starten</button>`;
+    if(CFG.local) actions += `<button class="btn small" data-act="rerun" data-kind="${esc(a.kind || "")}" data-id="${esc(x.id)}">Erneut starten</button>`;
   } else if(x.scenes || st === "done"){
     const r = x.reviewed;
     status = `<div class="status muted">${x.scenes} Szenen (${x.whistled} gepfiffen, ${x.candidates} Verdacht) · ${x.assessed} KI-Vorschläge · gesichtet: Selbst ${r.self}, Beobachter ${r.observer}</div>`;
@@ -202,10 +207,14 @@ function card(x){
       <div class="muted" style="margin-top:6px">${esc(crew)}</div></div>
     <div class="mactions">${actions}</div>${status}</article>`;
 }
-async function listAction(act, id){
+async function listAction(act, id, kind){
   try {
     if(act === "assess") await api(`/api/matches/${encodeURIComponent(id)}/assess`, {});
-    if(act === "rerun") await api(`/api/matches/${encodeURIComponent(id)}/analyze`, {});
+    if(act === "rerun") await api(`/api/matches/${encodeURIComponent(id)}/${kind === "assess" ? "assess" : "analyze"}`, {});
+    if(act === "cancel"){
+      if(!confirm("Analyse abbrechen? Fertige Schritte bleiben gespeichert.")) return;
+      await api(`/api/matches/${encodeURIComponent(id)}/cancel`, {});
+    }
     if(act === "scan"){
       if(!confirm("Das ganze Video geht zur Suche an den KI-Anbieter (ca. 1 $). Starten?")) return;
       await api(`/api/matches/${encodeURIComponent(id)}/analyze`, {options: {gemini: true}});

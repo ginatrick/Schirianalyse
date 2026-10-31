@@ -7,7 +7,7 @@ import time
 import traceback
 
 from . import pipeline
-from .logs import set_sink, set_step
+from .logs import Cancelled, set_cancel, set_sink, set_step
 
 STEP_LABELS = {
     "import": "Video aufbereiten",
@@ -33,7 +33,8 @@ class JobManager:
             if cur and cur["status"] in ("queued", "running"):
                 return cur
             job = {"match_id": match_id, "kind": kind, "status": "queued", "step": None, "step_label": "wartet",
-                   "log": [], "queued_at": time.time(), "started_at": None, "finished_at": None, "error": None}
+                   "log": [], "queued_at": time.time(), "started_at": None, "finished_at": None, "error": None,
+                   "cancel": threading.Event(), "cancel_requested": False}
             self.jobs[match_id] = job
         _persist(match_id, {"status": "queued", "kind": kind, "error": None})
         self._q.put((job, fn))
@@ -42,9 +43,27 @@ class JobManager:
     def get(self, match_id: str) -> dict | None:
         return self.jobs.get(match_id)
 
+    def cancel(self, match_id: str) -> dict | None:
+        """Queued jobs are dropped at once; a running job stops at the next safe point
+        (ffmpeg is stopped, a pending KI request is abandoned). Finished steps stay cached."""
+        with self._lock:
+            job = self.jobs.get(match_id)
+            if not job or job["status"] not in ("queued", "running"):
+                return job
+            job["cancel"].set()
+            job["cancel_requested"] = True
+            if job["status"] == "queued":
+                job["status"], job["finished_at"] = "cancelled", time.time()
+                _persist(match_id, {"status": "cancelled", "kind": job["kind"], "error": None})
+            else:
+                job["step_label"] = "wird abgebrochen …"
+        return job
+
     def _worker(self):
         while True:
             job, fn = self._q.get()
+            if job["cancel"].is_set():
+                continue
             job["status"], job["started_at"] = "running", time.time()
             _persist(job["match_id"], {"status": "running", "kind": job["kind"], "error": None})
 
@@ -53,15 +72,26 @@ class JobManager:
                 del job["log"][:-200]
 
             def on_step(name, job=job):
-                job["step"], job["step_label"] = name, STEP_LABELS.get(name, name)
+                if not job["cancel_requested"]:
+                    job["step"], job["step_label"] = name, STEP_LABELS.get(name, name)
 
             set_sink(sink)
             set_step(on_step)
+            set_cancel(job["cancel"])
             try:
                 result = fn()
                 job["status"] = "done"
                 extra = {"scenes": result} if isinstance(result, int) else {}
                 _persist(job["match_id"], {"status": "done", "kind": job["kind"], "error": None, **extra})
+            except Cancelled:
+                job["status"] = "cancelled"
+                job["log"].append(f"[{time.strftime('%H:%M:%S')}] Abgebrochen")
+                if job["kind"] == "assess":
+                    try:
+                        pipeline.publish(pipeline.Match(job["match_id"]))   # show the suggestions paid for so far
+                    except Exception:
+                        traceback.print_exc()
+                _persist(job["match_id"], {"status": "cancelled", "kind": job["kind"], "error": None})
             except BaseException as e:  # SystemExit carries our user-facing messages
                 if isinstance(e, KeyboardInterrupt):
                     raise
@@ -74,6 +104,7 @@ class JobManager:
                 job["finished_at"] = time.time()
                 set_sink(None)
                 set_step(None)
+                set_cancel(None)
 
 
 def _persist(match_id: str, analysis: dict) -> None:
