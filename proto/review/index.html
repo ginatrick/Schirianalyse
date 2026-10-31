@@ -201,6 +201,8 @@ function card(x){
     actions += `<button class="btn small" data-act="assess" data-id="${esc(x.id)}">KI-Vorschläge holen</button>`;
   if(CFG.local && st === "done" && CFG.scan_available && !x.scanned)
     actions += `<button class="btn small" data-act="scan" data-id="${esc(x.id)}">Szenen ohne Pfiff suchen</button>`;
+  if(CFG.local && st === "done")
+    actions += `<button class="btn small" data-act="rerun" data-kind="analyze" data-id="${esc(x.id)}" title="Mit dem aktuellen Stand neu auswerten. Fertige Schritte und bezahlte KI-Ergebnisse werden wiederverwendet.">Neu auswerten</button>`;
   if(CFG.local) actions += `<a class="btn small" style="text-decoration:none" href="#/bearbeiten/${encodeURIComponent(x.id)}">Bearbeiten</a>`;
   return `<article class="mcard" id="m-${esc(x.id)}">
     <div><h3>${esc(m.home || "?")} – ${esc(m.away || "?")}</h3>
