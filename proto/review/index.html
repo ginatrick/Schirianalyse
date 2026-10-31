@@ -75,7 +75,8 @@ video{display:block;width:100%;max-height:62vh;background:#000}
 .vbar button.on{background:var(--accent);color:var(--accent-ink)}
 .body{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:14px 16px}
 @media (max-width:720px){.body{grid-template-columns:1fr}}
-.badge{border-radius:999px;padding:2px 10px;font-size:13px;background:var(--chip)}
+.badge{border-radius:999px;padding:2px 10px;font-size:13px;background:var(--chip)}.badge.warn{background:var(--warn);color:#fff}
+.hide{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);white-space:nowrap}
 .badge.whistled{background:var(--accent);color:var(--accent-ink)}.badge.candidate{background:var(--warn);color:#fff}
 .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
 .time{font-size:22px;margin:4px 0;font-variant-numeric:tabular-nums;font-weight:650}
@@ -333,17 +334,26 @@ async function viewReview(id){
     <b>${esc(m.home || "")} – ${esc(m.away || "")}</b><span class="muted">${esc(fmtDate(m.date))} · SR ${esc(m.referee || "?")}</span></div>
     <div class="rhead"><div class="seg" id="role"><button data-v="self">Selbstbewertung</button><button data-v="observer">Beobachter</button></div>
     <div class="seg" id="filter"><button data-v="open">Offen</button><button data-v="all">Alle</button><button data-v="whistled">Pfiffe</button><button data-v="candidate">Verdacht</button></div>
+    <label class="hide" id="hideWrap" hidden><input type="checkbox" id="hideRestart"> <span id="hideLabel"></span></label>
     <span class="progress" id="progress"></span></div><div id="stage"></div>`;
   seg("#role", S.role, v => { S.role = v; store.set("schiri-role", v); rebuild(true); });
   seg("#filter", S.filter, v => { S.filter = v; rebuild(true); });
+  const nRestart = S.data.scenes.filter(isRestart).length;
+  if(nRestart){
+    $("#hideWrap").hidden = false; $("#hideLabel").textContent = `Spielfortsetzungen ausblenden (${nRestart})`;
+    S.hideRestart = store.get("schiri-hide-restart", "0") === "1"; $("#hideRestart").checked = S.hideRestart;
+    $("#hideRestart").onchange = e => { S.hideRestart = e.target.checked; store.set("schiri-hide-restart", S.hideRestart ? "1" : "0"); rebuild(true); };
+  } else S.hideRestart = false;
   document.onkeydown = keys;
   rebuild(true);
 }
+const isRestart = sc => sc.type === "whistled" && sc.video && sc.video.phase === "restart";
+const VIDEO_CLASS = {stopped: "", restart: "", running: "warn", unclear: ""};
 function seg(sel, val, cb){ const set = v => document.querySelectorAll(sel+" button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); set(val);
   document.querySelectorAll(sel+" button").forEach(b => b.onclick = () => { set(b.dataset.v); cb(b.dataset.v); }); }
 function rebuild(reset){
   const all = S.data.scenes;
-  S.list = all.filter(sc => S.filter === "all" || (S.filter === "open" ? !rev(sc) : sc.type === S.filter));
+  S.list = all.filter(sc => (S.filter === "all" || (S.filter === "open" ? !rev(sc) : sc.type === S.filter)) && !(S.hideRestart && isRestart(sc)));
   if(reset) S.idx = 0;
   S.idx = Math.min(S.idx, Math.max(0, S.list.length - 1));
   $("#progress").textContent = `${all.filter(rev).length}/${all.length} gesichtet`;
@@ -366,10 +376,10 @@ function render(){
       <button id="back">−1 Bild</button><button id="fwd">+1 Bild</button>
       <span class="muted">${sc.type==="whistled" ? "Pfiff" : "Szene"} bei ${(sc.t_event - sc.start).toFixed(1).replace(".", ",")} s im Clip</span></div>
     <div class="body"><div>
-        <div class="meta"><span class="badge ${sc.type}">${sc.type==="whistled" ? "Gepfiffen" : "Kein Pfiff · Verdacht"}</span><span class="badge">${esc(sc.detected_by.join(" + "))}</span><span class="badge">${S.idx+1} / ${S.list.length}</span></div>
+        <div class="meta"><span class="badge ${sc.type}">${sc.type==="whistled" ? "Gepfiffen" : "Kein Pfiff · Verdacht"}</span>${sc.video ? `<span class="badge ${VIDEO_CLASS[sc.video.phase]||""}" title="Aus der Bewegung im Bild geschätzt – nur ein Hinweis">${esc(sc.video.label)}</span>` : ""}<span class="badge">${esc(sc.detected_by.join(" + "))}</span><span class="badge">${S.idx+1} / ${S.list.length}</span></div>
         <div class="time">${esc(sc.time_label)} <span class="muted">(${sc.minute + 1}. Minute im Video)</span></div>
         ${c ? `<div><b>${esc(CTYPE[c.type]||c.type)}</b> – ${esc(c.description)} ${c.location ? `<span class="muted">· ${esc(c.location)}</span>` : ""}</div>` : ""}
-        ${sc.whistle ? `<div class="muted">Pfiff ${sc.whistle.duration.toFixed(1)} s · ${Math.round(sc.whistle.peak_hz)} Hz · Erkennung ${Math.round(sc.whistle.confidence*100)} %</div>` : ""}
+        ${sc.whistle ? `<div class="muted">${(sc.whistle.count||1) > 1 ? `${sc.whistle.count} Pfiffe, ` : "Pfiff "}${sc.whistle.duration.toFixed(1)} s · ${Math.round(sc.whistle.peak_hz)} Hz · Erkennung ${Math.round(sc.whistle.confidence*100)} %</div>` : ""}
         ${r ? `<div class="muted" style="margin-top:8px">Bereits gesichtet: ${esc(actionLabel(r))}</div>` : ""}
       </div><div class="ai"><h4>KI-Vorschlag</h4>${aiHtml}</div></div>
     <div class="actions">

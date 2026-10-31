@@ -19,6 +19,7 @@ class Scene:
     candidate: dict | None = None
     clip: str | None = None
     ai: dict | None = None      # assessment proposal
+    video: dict | None = None   # play stoppage from the picture (motion.classify)
     notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:

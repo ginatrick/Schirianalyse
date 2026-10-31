@@ -12,6 +12,7 @@ from .logs import Cancelled, set_cancel, set_sink, set_step
 STEP_LABELS = {
     "import": "Video aufbereiten",
     "whistle": "Pfiffe suchen",
+    "motion": "Spielunterbrechungen im Bild",
     "gemini": "Gemini sucht Szenen",
     "scenes": "Szenen bilden",
     "clips": "Clips schneiden",

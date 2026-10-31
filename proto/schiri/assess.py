@@ -48,6 +48,13 @@ def _facts(scene: dict, meta: dict | None = None) -> str:
     if scene["type"] == "whistled":
         w = scene.get("whistle") or {}
         lines.append(f"Ein Pfiff ist zu hören (Dauer {w.get('duration', 0):.1f} s). Das letzte Bild liegt etwa 1 s nach dem Pfiff.")
+        v = scene.get("video") or {}
+        hint = {"stopped": "Nach dem Pfiff ruht das Spiel (Kamera steht) – vermutlich eine Unterbrechung.",
+                "restart": "Vor dem Pfiff ruhte das Spiel, danach läuft es – vermutlich ein Pfiff zur Spielfortsetzung "
+                           "(Anstoß, Frei- oder Strafstoß). Dann gibt es meist nichts zu bewerten: decision not_a_foul_situation.",
+                "running": "Das Spiel läuft nach dem Pfiff weiter – Vorteil, oder der Pfiff kam von woanders."}.get(v.get("phase"))
+        if hint:
+            lines.append(f"Bewegungsanalyse (nur Hinweis): {hint}")
     else:
         lines.append("Kein Pfiff erkannt. Die Szene wurde als Verdachtsfall vorgeschlagen.")
     c = scene.get("candidate")

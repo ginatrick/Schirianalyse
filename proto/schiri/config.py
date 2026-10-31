@@ -52,6 +52,20 @@ class WhistleParams:
 
 
 @dataclass
+class MotionParams:
+    """Play stoppage from the picture (see motion.py)."""
+    fps: int = 5
+    width: int = 192
+    height: int = 108
+    pre_s: float = 5.0           # window before the whistle
+    post_gap_s: float = 1.0      # players need a moment to react
+    post_s: float = 5.0          # window after the whistle
+    still_cam_px: float = 0.3    # camera pans less than this per frame (at 192 px width) = ball dead
+    drop_ratio: float = 0.7      # picture motion after/before at or below this = play stopped
+    rise_ratio: float = 1.4      # at or above this = play restarted
+
+
+@dataclass
 class SceneParams:
     pre_s: float = 8.0     # the incident usually happens before the whistle
     post_s: float = 4.0
@@ -64,6 +78,7 @@ class SceneParams:
 @dataclass
 class Settings:
     whistle: WhistleParams = field(default_factory=WhistleParams)
+    motion: MotionParams = field(default_factory=MotionParams)
     scenes: SceneParams = field(default_factory=SceneParams)
     # KI access: "openrouter" (one key for Gemini and Claude) or "direct" (Google and Anthropic keys)
     provider: str = field(default_factory=lambda: env("KI_PROVIDER")

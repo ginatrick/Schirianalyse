@@ -10,7 +10,7 @@ from . import media, scenes as scene_mod, whistle
 from .logs import log, step as mark_step
 from .config import Settings, match_dir
 
-STEP_VERSIONS = {"import": 1, "audio_whistle": 2, "gemini_scan": 1, "scenes": 1, "clips": 1, "assessment": 1}
+STEP_VERSIONS = {"import": 1, "audio_whistle": 2, "motion": 1, "gemini_scan": 1, "scenes": 2, "clips": 1, "assessment": 1}
 
 
 class Match:
@@ -84,12 +84,35 @@ def step_gemini(m: Match, s: Settings, force: bool = False) -> dict:
     return m.save("gemini_scan", {"candidates": cands, "usage": usage, "model": s.scan_model, "provider": s.provider}, t0)
 
 
+def step_motion(m: Match, s: Settings, force: bool = False) -> dict:
+    if not force and (r := m.result("motion")) and (m.step_dir("motion") / "motion.npy").is_file():
+        return r
+    from . import motion
+    t0 = time.time()
+    imp = m.result("import")
+    log("Bewegung im Bild messen (Spielunterbrechungen) ...")
+    n = motion.compute(m.step_dir("import") / "proxy.mp4", m.step_dir("motion") / "motion.npy", s.motion, imp["duration_s"])
+    return m.save("motion", {"frames": n, "fps": s.motion.fps}, t0)
+
+
 def step_scenes(m: Match, s: Settings, use_gemini: bool) -> dict:
+    from . import motion
     t0 = time.time()
     imp = m.result("import")
     whistles = m.result("audio_whistle")["events"]
     cands = (m.result("gemini_scan") or {}).get("candidates", []) if use_gemini else []
     built = scene_mod.build(whistles, cands, imp["duration_s"], s.scenes)
+    data = motion.load(m.step_dir("motion") / "motion.npy") if m.result("motion") else None
+    if data is not None and len(data):
+        counts: dict[str, int] = {}
+        for sc in built:
+            if sc.type == "whistled" and sc.whistle:
+                sc.video = motion.classify(data, sc.whistle["t_start"], sc.whistle["t_end"], s.motion,
+                                           panorama=bool(imp.get("has_panorama")))
+                if sc.video:
+                    counts[sc.video["label"]] = counts.get(sc.video["label"], 0) + 1
+        if counts:
+            log("Bild nach Pfiff: " + ", ".join(f"{v}× {k}" for k, v in counts.items()))
     return m.save("scenes", {"scenes": [sc.to_dict() for sc in built]}, t0)
 
 
@@ -141,8 +164,12 @@ def step_assess(m: Match, s: Settings, limit: int | None, force: bool = False) -
 
 def publish(m: Match) -> Path:
     """Write the final scenes.json the review UI reads."""
-    src = m.result("assessment") or m.result("clips")
-    out = {"match": m.meta, "video": m.result("import"), "scenes": src["scenes"]}
+    scenes = m.result("clips")["scenes"]
+    ai = {window_key(sc): sc.get("ai") for sc in (m.result("assessment") or {}).get("scenes", []) if sc.get("ai")}
+    for sc in scenes:                    # suggestions stay attached to their time window
+        if window_key(sc) in ai:
+            sc["ai"] = ai[window_key(sc)]
+    out = {"match": m.meta, "video": m.result("import"), "scenes": scenes}
     out["video"] = {k: v for k, v in out["video"].items() if k != "source"}
     f = m.dir / "scenes.json"
     f.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -167,6 +194,8 @@ def run_analysis(m: Match, video: Path, s: Settings, use_gemini: bool, use_asses
     step_import(m, video, force=force)
     mark_step("whistle")
     step_whistle(m, s, force=force)
+    mark_step("motion")
+    step_motion(m, s, force=force)
     if use_gemini:
         mark_step("gemini")
         step_gemini(m, s, force=force)
