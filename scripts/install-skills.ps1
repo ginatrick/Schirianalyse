@@ -4,6 +4,9 @@
 
 $ErrorActionPreference = "Stop"
 
+# Immer im Projektordner installieren, egal von wo das Skript gestartet wird
+Set-Location (Join-Path $PSScriptRoot "..")
+
 # Supabase: Postgres- und Schema-Best-Practices (MIT)
 npx -y skills add supabase/agent-skills --skill supabase-postgres-best-practices --agent claude-code -y
 
