@@ -1,12 +1,15 @@
 """Referee whistle detection from the audio track (CPU only).
 
-A referee whistle is a loud, narrow-band tone, usually between 2 and 5 kHz.
-Per 32 ms frame we measure
-  * band ratio: share of the spectrum energy inside the whistle band
-  * tonality:   strongest band bin compared with the mean band energy
-  * level:      band energy above a rolling noise floor (dB)
-Frames passing all three are joined into events; events that are too short or too long
-are dropped, events close together (double whistle) are merged.
+Tuned on a real Veo recording of a youth match, where children's shouting fills the
+2-5 kHz band (970 false hits with the first version). What separates a whistle from a voice:
+  * prominence: the strongest bin in the whistle band towers over the band median
+    (whistle 40-55 dB, shouting 10-25 dB)
+  * nothing underneath: a whistle has no harmonics below 1.5 kHz, a voice always has.
+    "low" = strongest bin 300-1500 Hz relative to the whistle peak (whistle -15 to -45 dB,
+    voice -10 to +20 dB)
+  * steady pitch: consecutive frames stay within a few tens of Hz; voice harmonics glide
+Two passes: strong events teach us the pitch of this referee's whistle, then quieter or
+partly covered events are accepted only at that pitch.
 """
 from __future__ import annotations
 
@@ -54,88 +57,99 @@ def read_wav(path: Path) -> tuple[np.ndarray, int]:
     return x, sr
 
 
-def frame_features(x: np.ndarray, sr: int, p: WhistleParams, chunk_s: float = 60.0):
-    """Returns per-frame times, band ratio, tonality, band level (dB) and peak frequency.
-    Processes the signal in chunks so a full match fits easily in memory."""
+def frame_features(x: np.ndarray, sr: int, p: WhistleParams, chunk_frames: int = 2000) -> dict:
+    """Per frame: time, peak frequency in the whistle band, prominence (dB) and low-band level (dB)."""
     n, hop = p.frame_len, p.hop
     window = np.hanning(n).astype(np.float32)
     freqs = np.fft.rfftfreq(n, 1.0 / sr)
-    band = (freqs >= p.band_low_hz) & (freqs <= p.band_high_hz)
-    band_freqs = freqs[band]
+    ctx = (freqs >= p.context_low_hz) & (freqs <= p.context_high_hz)   # reference for the median
+    ctx_freqs = freqs[ctx]
+    in_band = (ctx_freqs >= p.band_low_hz) & (ctx_freqs <= p.band_high_hz)
+    band_offset = int(np.argmax(in_band))
+    low = (freqs >= p.low_band_low_hz) & (freqs < p.low_band_high_hz)
 
-    total_frames = max(0, 1 + (len(x) - n) // hop)
-    times = np.arange(total_frames) * hop / sr + (n / 2) / sr
-    ratio = np.zeros(total_frames, np.float32)
-    tonal = np.zeros(total_frames, np.float32)
-    level = np.zeros(total_frames, np.float32)
-    peak = np.zeros(total_frames, np.float32)
-
-    frames_per_chunk = max(1, int(chunk_s * sr / hop))
-    for f0 in range(0, total_frames, frames_per_chunk):
-        f1 = min(total_frames, f0 + frames_per_chunk)
+    total = max(0, 1 + (len(x) - n) // hop)
+    out = {k: np.zeros(total, np.float32) for k in ("f", "prom", "low")}
+    out["t"] = np.arange(total) * hop / sr + (n / 2) / sr
+    for f0 in range(0, total, chunk_frames):
+        f1 = min(total, f0 + chunk_frames)
         idx = np.arange(f0, f1)[:, None] * hop + np.arange(n)[None, :]
-        spec = np.abs(np.fft.rfft(x[idx] * window, axis=1)) ** 2
-        band_spec = spec[:, band]
-        band_e = band_spec.sum(axis=1) + 1e-12
-        total_e = spec.sum(axis=1) + 1e-12
-        ratio[f0:f1] = band_e / total_e
-        tonal[f0:f1] = band_spec.max(axis=1) / (band_spec.mean(axis=1) + 1e-12)
-        level[f0:f1] = 10 * np.log10(band_e)
-        peak[f0:f1] = band_freqs[np.argmax(band_spec, axis=1)]
-    return times, ratio, tonal, level, peak
+        spec = np.abs(np.fft.rfft(x[idx] * window, axis=1)) ** 2 + 1e-14
+        c = spec[:, ctx]
+        rows = np.arange(f1 - f0)
+        k = np.argmax(c[:, in_band], axis=1) + band_offset
+        pk = c[rows, k]
+        # parabolic interpolation for a finer pitch estimate
+        a = np.log(c[rows, np.clip(k - 1, 0, c.shape[1] - 1)])
+        b = np.log(pk)
+        g = np.log(c[rows, np.clip(k + 1, 0, c.shape[1] - 1)])
+        d = np.clip(0.5 * (a - g) / (a - 2 * b + g - 1e-9), -0.5, 0.5)
+        out["f"][f0:f1] = ctx_freqs[k] + d * sr / n
+        out["prom"][f0:f1] = 10 * np.log10(pk / np.median(c, axis=1))
+        out["low"][f0:f1] = 10 * np.log10(spec[:, low].max(axis=1) / pk)
+    return out
 
 
-def rolling_floor(level_db: np.ndarray, window_frames: int) -> np.ndarray:
-    """Rolling 20th percentile of the band level: the background noise without whistles."""
-    if len(level_db) == 0:
-        return level_db
-    step = max(1, window_frames // 4)
-    anchors = np.arange(0, len(level_db), step)
-    vals = []
-    for a in anchors:
-        lo, hi = max(0, a - window_frames // 2), min(len(level_db), a + window_frames // 2)
-        vals.append(np.percentile(level_db[lo:hi], 20))
-    return np.interp(np.arange(len(level_db)), anchors, np.array(vals))
+def _events(F: dict, hit: np.ndarray, p: WhistleParams, frame_s: float, min_dur: float) -> list[dict]:
+    """Join hit frames with a steady pitch into events."""
+    ev, i, n = [], 0, len(hit)
+    while i < n:
+        if not hit[i]:
+            i += 1
+            continue
+        j, last, gap = i, i, 0
+        while j + 1 < n:
+            j += 1
+            if hit[j] and abs(F["f"][j] - F["f"][last]) <= p.max_step_hz:
+                last, gap = j, 0
+            else:
+                gap += 1
+                if gap > p.max_gap_frames:
+                    break
+        seg = np.arange(i, last + 1)
+        m = seg[hit[seg]]
+        t0, t1 = float(F["t"][i] - frame_s / 2), float(F["t"][last] + frame_s / 2)
+        if t1 - t0 >= min_dur and t1 - t0 <= p.max_duration_s:
+            ev.append({"t0": t0, "t1": t1, "f": float(np.median(F["f"][m])),
+                       "prom": float(np.median(F["prom"][m])), "low": float(np.median(F["low"][m]))})
+        i = last + 1
+    return ev
 
 
 def detect(x: np.ndarray, sr: int, p: WhistleParams | None = None) -> list[WhistleEvent]:
     p = p or WhistleParams()
-    times, ratio, tonal, level, peak = frame_features(x, sr, p)
-    if len(times) == 0:
+    F = frame_features(x, sr, p)
+    if len(F["t"]) == 0:
         return []
-    floor = rolling_floor(level, int(p.floor_window_s * sr / p.hop))
-    above = level - floor
-    hit = (ratio >= p.min_band_ratio) & (tonal >= p.min_tonality) & (above >= p.min_db_above_floor)
+    frame_s = p.hop / sr
 
-    events: list[WhistleEvent] = []
-    i, frame_s = 0, p.hop / sr
-    while i < len(hit):
-        if not hit[i]:
-            i += 1
-            continue
-        j, gap = i, 0
-        while j + 1 < len(hit) and (hit[j + 1] or gap < p.max_gap_frames):
-            gap = 0 if hit[j + 1] else gap + 1
-            j += 1
-        while j > i and not hit[j]:
-            j -= 1
-        seg = slice(i, j + 1)
-        mask = hit[seg]
-        t0, t1 = times[i] - frame_s / 2, times[j] + frame_s / 2
-        dur = t1 - t0
-        if p.min_duration_s <= dur <= p.max_duration_s:
-            conf = _confidence(ratio[seg][mask], tonal[seg][mask], above[seg][mask], p)
-            pk = float(np.median(peak[seg][mask]))
-            events.append(WhistleEvent(round(float(t0), 3), round(float(t1), 3), round(pk, 1), conf))
-        i = j + 1
+    # pass 1: unmistakable whistles
+    strong = _events(F, (F["prom"] >= p.strong_prom_db) & (F["low"] <= p.strong_low_db), p, frame_s, p.min_duration_s)
+    for e in strong:
+        e["strong"] = True
+
+    # pass 2: quieter / partly covered whistles, only at a pitch the strong ones confirmed
+    pitches = np.array([e["f"] for e in strong])
+    weak = []
+    if len(pitches) >= p.min_strong_for_pitch:
+        cand = _events(F, (F["prom"] >= p.weak_prom_db) & (F["low"] <= p.weak_low_db), p, frame_s, p.weak_min_duration_s)
+        for e in cand:
+            close = int(np.sum(np.abs(pitches - e["f"]) <= p.pitch_tolerance_hz))
+            overlaps = any(e["t0"] < s["t1"] and s["t0"] < e["t1"] for s in strong)
+            if close >= p.min_strong_for_pitch and not overlaps:
+                e["strong"] = False
+                weak.append(e)
+
+    events = [WhistleEvent(round(e["t0"], 3), round(e["t1"], 3), round(e["f"], 1), _confidence(e, p))
+              for e in sorted(strong + weak, key=lambda e: e["t0"])]
     return merge(events, p.merge_gap_s)
 
 
-def _confidence(ratio, tonal, above, p: WhistleParams) -> float:
-    s_ratio = np.clip((np.mean(ratio) - p.min_band_ratio) / (1 - p.min_band_ratio), 0, 1)
-    s_tonal = np.clip((np.log(np.mean(tonal)) - np.log(p.min_tonality)) / np.log(8), 0, 1)
-    s_level = np.clip((np.mean(above) - p.min_db_above_floor) / 15.0, 0, 1)
-    return round(float(0.4 + 0.6 * (0.3 * s_ratio + 0.35 * s_tonal + 0.35 * s_level)), 3)
+def _confidence(e: dict, p: WhistleParams) -> float:
+    s_prom = np.clip((e["prom"] - p.weak_prom_db) / 25.0, 0, 1)
+    s_low = np.clip((p.weak_low_db - e["low"]) / 30.0, 0, 1)
+    base = 0.6 if e["strong"] else 0.35
+    return round(float(base + 0.4 * (0.5 * s_prom + 0.5 * s_low)), 3)
 
 
 def merge(events: list[WhistleEvent], gap_s: float) -> list[WhistleEvent]:
@@ -143,7 +157,8 @@ def merge(events: list[WhistleEvent], gap_s: float) -> list[WhistleEvent]:
     for ev in sorted(events, key=lambda e: e.t_start):
         if out and ev.t_start - out[-1].t_end <= gap_s:
             last = out[-1]
-            out[-1] = WhistleEvent(last.t_start, ev.t_end, last.peak_hz, max(last.confidence, ev.confidence))
+            out[-1] = WhistleEvent(last.t_start, max(last.t_end, ev.t_end), last.peak_hz,
+                                   max(last.confidence, ev.confidence))
         else:
             out.append(ev)
     return out

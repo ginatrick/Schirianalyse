@@ -35,10 +35,26 @@ def fmt_time(t: float) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
+def group_whistles(whistles: list[dict], gap_s: float) -> list[dict]:
+    """Join whistles that follow each other within gap_s into one event (count = number of whistles)."""
+    out: list[dict] = []
+    for w in sorted(whistles, key=lambda w: w["t_start"]):
+        if out and w["t_start"] - out[-1]["t_end"] <= gap_s:
+            g = out[-1]
+            g["t_end"] = max(g["t_end"], w["t_end"])
+            g["duration"] = round(g["t_end"] - g["t_start"], 3)
+            g["confidence"] = max(g["confidence"], w["confidence"])
+            g["count"] = g.get("count", 1) + 1
+            g["kind"] = "long" if w.get("kind") == "long" or g.get("kind") == "long" else g.get("kind", "short")
+        else:
+            out.append(dict(w))
+    return out
+
+
 def build(whistles: list[dict], candidates: list[dict], duration_s: float, p: SceneParams | None = None) -> list[Scene]:
     p = p or SceneParams()
     scenes: list[Scene] = []
-    for w in whistles:
+    for w in group_whistles(whistles, p.group_gap_s):
         t = w["t_start"]
         scenes.append(Scene(
             id="", t_event=t, start=round(max(0.0, t - p.pre_s), 2), end=round(min(duration_s, w["t_end"] + p.post_s), 2),

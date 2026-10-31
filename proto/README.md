@@ -95,7 +95,8 @@ Die Clip-Namen folgen dem Zeitfenster der Szene. Wird ein Spiel neu analysiert, 
 ## Grenzen des Rohentwurfs
 - Kein Schiri-Tracking, keine Laufwege (kommt als nächster Schritt über Colab mit Grafikkarte).
 - Gemini sieht standardmäßig etwa ein Bild pro Sekunde; kurze Kontakte können fehlen.
-- Pfiff-Erkennung ist mit synthetischen Daten getestet. Die Schwellen in `schiri/config.py` (`WhistleParams`) werden an echten Veo-Videos nachjustiert.
+- Pfiff-Erkennung ist an einem echten Veo-Jugendspiel eingestellt (laute Kinderrufe im selben Frequenzbereich wie die Pfeife). Sie lernt pro Spiel die Tonhöhe der Schiri-Pfeife; fremde Pfeifen von Nachbarplätzen können trotzdem durchrutschen. Schwellen in `schiri/config.py` (`WhistleParams`).
+- Pfiffe, die kurz hintereinander kommen (Doppelpfiff, Pfiff plus Wiederanpfiff), werden zu einer Szene zusammengefasst.
 - Kein Login, keine Rollenrechte – nur für den eigenen PC und das Heimnetz gedacht.
 
 ## Tests

@@ -10,7 +10,7 @@ from . import media, scenes as scene_mod, whistle
 from .logs import log, step as mark_step
 from .config import Settings, match_dir
 
-STEP_VERSIONS = {"import": 1, "audio_whistle": 1, "gemini_scan": 1, "scenes": 1, "clips": 1, "assessment": 1}
+STEP_VERSIONS = {"import": 1, "audio_whistle": 2, "gemini_scan": 1, "scenes": 1, "clips": 1, "assessment": 1}
 
 
 class Match:
@@ -106,6 +106,12 @@ def step_clips(m: Match, force: bool = False) -> dict:
         sc["clip"] = f"clips/{out.name}"
         if i % 10 == 0:
             log(f"Clips {i}/{len(scs)}")
+    used = {Path(sc["clip"]).name for sc in scs}
+    stale = [f for f in clips_dir.glob("*.mp4") if f.name not in used]
+    for f in stale:                      # clips of scenes that no longer exist after a re-analysis
+        f.unlink(missing_ok=True)
+    if stale:
+        log(f"{len(stale)} alte Clips entfernt")
     return m.save("clips", {"scenes": scs}, t0)
 
 

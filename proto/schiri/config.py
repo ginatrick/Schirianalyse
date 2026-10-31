@@ -27,18 +27,27 @@ def env(name: str, default: str = "") -> str:
 
 @dataclass
 class WhistleParams:
+    """Thresholds tuned on a real Veo youth match (see whistle.py for what they mean)."""
     sample_rate: int = 16000
-    frame_len: int = 1024          # 64 ms
+    frame_len: int = 2048          # 128 ms, ~8 Hz resolution for the steady-pitch check
     hop: int = 512                 # 32 ms
-    band_low_hz: float = 2000.0
-    band_high_hz: float = 5000.0
-    min_band_ratio: float = 0.45   # share of energy in the whistle band
-    min_tonality: float = 8.0      # peak bin vs. mean band energy
-    min_db_above_floor: float = 9.0
-    floor_window_s: float = 20.0
-    max_gap_frames: int = 3
-    min_duration_s: float = 0.12
-    max_duration_s: float = 4.0
+    band_low_hz: float = 2500.0    # where the whistle peak is searched
+    band_high_hz: float = 4800.0
+    context_low_hz: float = 1500.0 # reference band for the prominence median
+    context_high_hz: float = 5200.0
+    low_band_low_hz: float = 300.0 # voices always have energy here, whistles don't
+    low_band_high_hz: float = 1500.0
+    strong_prom_db: float = 35.0
+    strong_low_db: float = -15.0
+    weak_prom_db: float = 28.0
+    weak_low_db: float = -8.0
+    weak_min_duration_s: float = 0.25
+    pitch_tolerance_hz: float = 120.0
+    min_strong_for_pitch: int = 2
+    max_step_hz: float = 40.0      # pitch change allowed between frames
+    max_gap_frames: int = 2
+    min_duration_s: float = 0.15
+    max_duration_s: float = 6.0
     merge_gap_s: float = 0.6
 
 
@@ -49,6 +58,7 @@ class SceneParams:
     candidate_pre_s: float = 5.0
     candidate_post_s: float = 5.0
     link_window_s: float = 4.0   # candidate this close to a whistle belongs to that scene
+    group_gap_s: float = 3.0     # whistles closer than this (double whistle, whistle + restart) form one scene
 
 
 @dataclass
