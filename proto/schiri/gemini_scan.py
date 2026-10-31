@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from . import media
+from .logs import log
 from .config import Settings, pitch_label
 
 PROMPT = """Du bist Assistent eines Schiedsrichter-Beobachters. Das Video zeigt einen Ausschnitt eines Amateur-Fußballspiels,
@@ -65,7 +66,7 @@ def scan(video: Path, duration_s: float, work: Path, s: Settings, meta: dict | N
         if dur < 5:
             continue
         part = work / f"scan_{i:02d}.mp4"
-        print(f"  Gemini-Abschnitt {i + 1}/{n_chunks} ...", flush=True)
+        log(f"Gemini-Abschnitt {i + 1}/{n_chunks} ...")
         media.make_scan_video(video, part, start, dur, small=s.provider == "openrouter")
         text, u = ask(part)
         (work / f"scan_{i:02d}.json").write_text(text or "", encoding="utf-8")

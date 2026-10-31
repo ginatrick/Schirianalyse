@@ -12,11 +12,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-BASE_URL = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+BASE_URL = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
 
 
 def available() -> bool:
-    return bool(os.environ.get("OPENROUTER_API_KEY"))
+    return bool(os.environ.get("OPENROUTER_API_KEY", "").strip())
 
 
 def data_url(path: Path, mime: str) -> str:
@@ -33,7 +33,7 @@ def image_part(path: Path) -> dict:
 
 def chat(model: str, content: list[dict], system: str | None = None, max_tokens: int = 2000,
          temperature: float = 0.1, retries: int = 3, timeout: int = 600) -> tuple[str, dict]:
-    key = os.environ.get("OPENROUTER_API_KEY")
+    key = os.environ.get("OPENROUTER_API_KEY", "").strip().strip('"').strip("'")
     if not key:
         raise SystemExit("OPENROUTER_API_KEY fehlt (.env).")
     messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": content}]
@@ -63,7 +63,11 @@ def chat(model: str, content: list[dict], system: str | None = None, max_tokens:
             return text, usage
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:500]
-            last = f"HTTP {e.code}: {detail}"
+            hint = {401: "API-Key ungültig – OPENROUTER_API_KEY in .env prüfen",
+                    402: "OpenRouter-Guthaben aufgebraucht – unter openrouter.ai/credits aufladen",
+                    403: "Anfrage abgelehnt (Modell gesperrt oder Datenschutz-Einstellung bei OpenRouter)",
+                    404: "Modell nicht gefunden – Modellname in .env prüfen"}.get(e.code)
+            last = f"{hint} (HTTP {e.code})" if hint else f"HTTP {e.code}: {detail}"
             if e.code not in (408, 429, 500, 502, 503, 504):
                 break
         except (urllib.error.URLError, TimeoutError, RuntimeError) as e:

@@ -20,6 +20,11 @@ DATA_DIR = Path(os.environ.get("SCHIRI_DATA_DIR", REPO_DIR / "data" / "matches")
 REVIEW_DIR = PROTO_DIR / "review"
 
 
+def env(name: str, default: str = "") -> str:
+    """Environment value without surrounding spaces or quotes (robust against hand-edited .env files)."""
+    return (os.environ.get(name) or default).strip().strip('"').strip("'").strip()
+
+
 @dataclass
 class WhistleParams:
     sample_rate: int = 16000
@@ -51,13 +56,13 @@ class Settings:
     whistle: WhistleParams = field(default_factory=WhistleParams)
     scenes: SceneParams = field(default_factory=SceneParams)
     # KI access: "openrouter" (one key for Gemini and Claude) or "direct" (Google and Anthropic keys)
-    provider: str = field(default_factory=lambda: os.environ.get("KI_PROVIDER")
-                          or ("openrouter" if os.environ.get("OPENROUTER_API_KEY") else "direct"))
-    scan_model: str = field(default_factory=lambda: os.environ.get("SCAN_MODEL", ""))
-    scan_chunk_s: int = field(default_factory=lambda: int(os.environ.get("SCAN_CHUNK_S", "0")))
-    assess_model: str = field(default_factory=lambda: os.environ.get("ASSESS_MODEL", ""))
-    assess_model_strong: str = field(default_factory=lambda: os.environ.get("ASSESS_MODEL_STRONG", ""))
-    escalate_below: float = field(default_factory=lambda: float(os.environ.get("ESCALATE_BELOW", "0.6")))
+    provider: str = field(default_factory=lambda: env("KI_PROVIDER")
+                          or ("openrouter" if env("OPENROUTER_API_KEY") else "direct"))
+    scan_model: str = field(default_factory=lambda: env("SCAN_MODEL"))
+    scan_chunk_s: int = field(default_factory=lambda: int(env("SCAN_CHUNK_S", "0") or 0))
+    assess_model: str = field(default_factory=lambda: env("ASSESS_MODEL"))
+    assess_model_strong: str = field(default_factory=lambda: env("ASSESS_MODEL_STRONG"))
+    escalate_below: float = field(default_factory=lambda: float(env("ESCALATE_BELOW", "0.6") or 0.6))
 
     def __post_init__(self):
         if self.provider == "openrouter":
@@ -72,10 +77,10 @@ class Settings:
             self.scan_chunk_s = self.scan_chunk_s or 1200
 
     def scan_available(self) -> bool:
-        return bool(os.environ.get("OPENROUTER_API_KEY" if self.provider == "openrouter" else "GEMINI_API_KEY"))
+        return bool(env("OPENROUTER_API_KEY" if self.provider == "openrouter" else "GEMINI_API_KEY"))
 
     def assess_available(self) -> bool:
-        return bool(os.environ.get("OPENROUTER_API_KEY" if self.provider == "openrouter" else "ANTHROPIC_API_KEY"))
+        return bool(env("OPENROUTER_API_KEY" if self.provider == "openrouter" else "ANTHROPIC_API_KEY"))
 
 
 # Spielformen. Feldmaße variieren je Platz: echte Maße mit --pitch-length/--pitch-width angeben,

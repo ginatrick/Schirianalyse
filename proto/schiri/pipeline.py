@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from . import media, scenes as scene_mod, whistle
+from .logs import log, step as mark_step
 from .config import Settings, match_dir
 
 STEP_VERSIONS = {"import": 1, "audio_whistle": 1, "gemini_scan": 1, "scenes": 1, "clips": 1, "assessment": 1}
@@ -45,10 +46,6 @@ class Match:
 
 def window_key(sc: dict) -> str:
     return f"w{int(round(sc['start'] * 100)):07d}-{int(round(sc['end'] * 100)):07d}"
-
-
-def log(msg: str) -> None:
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
 def step_import(m: Match, video: Path, force: bool = False) -> dict:
@@ -151,3 +148,45 @@ def cleanup_original_copies(m: Match) -> None:
     for f in scan.glob("*.mp4"):
         f.unlink(missing_ok=True)
     shutil.rmtree(m.dir / "steps" / "assessment" / "frames", ignore_errors=True)
+
+
+def run_analysis(m: Match, video: Path, s: Settings, use_gemini: bool, use_assess: bool,
+                 assess_limit: int | None = None, force: bool = False) -> int:
+    """Full run used by CLI and web UI. Returns the number of scenes."""
+    log(f"Spiel '{m.id}' – Daten in {m.dir}")
+    if use_gemini or use_assess:
+        log(f"KI-Zugang: {s.provider} · Suche {s.scan_model if use_gemini else '-'} · Bewertung {s.assess_model if use_assess else '-'}")
+    mark_step("import")
+    step_import(m, video, force=force)
+    mark_step("whistle")
+    step_whistle(m, s, force=force)
+    if use_gemini:
+        mark_step("gemini")
+        step_gemini(m, s, force=force)
+    else:
+        log("Gemini-Suche übersprungen – nur gepfiffene Szenen")
+    mark_step("scenes")
+    step_scenes(m, s, use_gemini)
+    mark_step("clips")
+    step_clips(m, force=force)
+    if use_assess:
+        mark_step("assess")
+        step_assess(m, s, limit=assess_limit, force=force)
+    else:
+        log("KI-Bewertung übersprungen")
+    mark_step("publish")
+    f = publish(m)
+    cleanup_original_copies(m)
+    n = len(json.loads(f.read_text(encoding="utf-8"))["scenes"])
+    log(f"Fertig: {n} Szenen")
+    return n
+
+
+def run_assessment(m: Match, s: Settings, limit: int | None = None, force: bool = False) -> None:
+    if not m.result("clips"):
+        raise SystemExit("Erst die Analyse ausführen.")
+    mark_step("assess")
+    step_assess(m, s, limit=limit, force=force)
+    mark_step("publish")
+    publish(m)
+    log("Bewertungsvorschläge aktualisiert.")

@@ -40,40 +40,19 @@ def cmd_analyze(args) -> None:
     if not (meta.get("pitch") or {}).get("type"):
         pipeline.log("Hinweis: keine Spielform angegeben (--pitch grossfeld|verkuerzt|kleinfeld)")
     meta.setdefault("id", m.id)
+    meta["video_path"] = str(video)
     m.write_meta(meta)
 
     use_gemini = not args.no_gemini and s.scan_available()
     use_assess = not args.no_assess and s.assess_available()
-    if use_gemini or use_assess:
-        pipeline.log(f"KI-Zugang: {s.provider} · Suche {s.scan_model if use_gemini else '-'} · Bewertung {s.assess_model if use_assess else '-'}")
-
-    pipeline.log(f"Spiel '{m.id}' – Daten in {m.dir}")
-    pipeline.step_import(m, video, force=args.force)
-    pipeline.step_whistle(m, s, force=args.force)
-    if use_gemini:
-        pipeline.step_gemini(m, s, force=args.force)
-    else:
-        pipeline.log("Gemini-Suche übersprungen (kein API-Key oder --no-gemini) – nur gepfiffene Szenen")
-    pipeline.step_scenes(m, s, use_gemini)
-    pipeline.step_clips(m, force=args.force)
-    if use_assess:
-        pipeline.step_assess(m, s, limit=args.assess_limit, force=args.force)
-    else:
-        pipeline.log("KI-Bewertung übersprungen (kein API-Key oder --no-assess)")
-    f = pipeline.publish(m)
-    pipeline.cleanup_original_copies(m)
-    n = len(__import__("json").loads(f.read_text(encoding="utf-8"))["scenes"])
-    pipeline.log(f"Fertig: {n} Szenen. Sichtung starten mit: python -m schiri serve")
+    pipeline.run_analysis(m, video, s, use_gemini, use_assess, args.assess_limit, args.force)
+    pipeline.log("Sichtung starten mit: python -m schiri serve")
 
 
 def cmd_assess(args) -> None:
     s = Settings()
     m = pipeline.Match(args.match_id)
-    if not m.result("clips"):
-        raise SystemExit("Erst analyze ausführen.")
-    pipeline.step_assess(m, s, limit=args.limit, force=args.force)
-    pipeline.publish(m)
-    pipeline.log("Bewertungsvorschläge aktualisiert.")
+    pipeline.run_assessment(m, s, limit=args.limit, force=args.force)
 
 
 def cmd_list(_args) -> None:
@@ -87,7 +66,7 @@ def cmd_list(_args) -> None:
 
 def cmd_serve(args) -> None:
     from .review_server import serve
-    serve(args.host, args.port)
+    serve(args.host, args.port, open_browser=args.open)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -121,6 +100,7 @@ def main(argv: list[str] | None = None) -> None:
     c = sub.add_parser("serve", help="Sichtung im Browser starten")
     c.add_argument("--host", default="127.0.0.1", help="0.0.0.0 für Zugriff vom Handy im WLAN")
     c.add_argument("--port", type=int, default=8765)
+    c.add_argument("--open", action="store_true", help="Browser automatisch öffnen")
     c.set_defaults(func=cmd_serve)
 
     d = sub.add_parser("list", help="analysierte Spiele anzeigen")

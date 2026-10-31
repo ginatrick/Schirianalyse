@@ -30,20 +30,34 @@ Optional den KI-Zugang in `.env` im Projektordner eintragen (Vorlage `.env.examp
 
 Bei OpenRouter geht das Video als Datei im Aufruf mit (5-Minuten-Abschnitte, 360p, 1 Bild pro Sekunde, Ton). Google bearbeitet solche Aufrufe über Vertex AI. In den Datenschutz-Einstellungen von OpenRouter Anbieter ausschließen, die Daten zum Training verwenden.
 
-## Benutzung
+## Benutzung (Weboberfläche)
+
+Doppelklick auf **`start.bat`** im Ordner `proto` – oder im Terminal:
 
 ```powershell
 cd proto
 .venv\Scripts\activate
+python -m schiri serve --open
+```
 
-# 1. Spiel analysieren (Video bleibt, wo es liegt)
-python -m schiri analyze "D:\Videos\2026-11-01 Heim - Gast.mp4" --match-id 2026-11-01-heim-gast --date 2026-11-01 --home "FC Heim" --away "SV Gast" --referee "Max Mustermann" --league "C-Junioren Landesklasse" --pitch grossfeld --players 11
+Der Browser öffnet `http://localhost:8765`. Dort:
+1. **Neues Spiel** → Video über *Durchsuchen* wählen (startet in `Videos`, anderer Startordner über `SCHIRI_VIDEO_DIR` in `.env`). Das Datum wird aus dem Dateinamen übernommen, wenn er mit `JJJJ-MM-TT` beginnt.
+2. Spiel, Gespann (Schiri Pflicht, Assistenten optional) und Spielfeld eintragen: Großfeld / verkürztes Großfeld / Kleinfeld, Spieler pro Team, gemessene Maße. Mit Platzname werden Spielform und Maße gemerkt und beim nächsten Mal vorausgefüllt.
+3. KI-Schritte an- oder abwählen (nur aktiv, wenn ein Key in `.env` steht), **Analyse starten**.
+4. Unter **Spiele** läuft der Fortschritt mit. Danach **Sichten**. Fehlende Schritte lassen sich pro Spiel nachholen (*KI-Vorschläge holen*, *Szenen ohne Pfiff suchen*); bei einem Fehler *Erneut starten* – fertige Schritte werden dabei nicht neu gerechnet.
 
-# 2. Sichtung starten, dann http://localhost:8765 öffnen
-python -m schiri serve
+Oben in der Liste nach Schiedsrichter filtern. *Bearbeiten* ändert Spieldaten, Gespann und Feld, ohne neu zu analysieren.
 
-# Vom Handy im selben WLAN (Windows-Firewall fragt einmal nach)
-python -m schiri serve --host 0.0.0.0
+Die Analyse läuft, solange das Fenster mit dem Server offen ist. Wird es mittendrin geschlossen, steht das Spiel beim nächsten Start auf „Fehler“ und lässt sich mit *Erneut starten* fortsetzen.
+
+Vom Handy im selben WLAN sichten (Windows-Firewall fragt einmal nach): `python -m schiri serve --host 0.0.0.0`, dann `http://<PC-IP>:8765`. Spiele anlegen und Analysen starten geht nur am PC selbst; vom Handy aus kann nur gesichtet und bewertet werden.
+
+## Benutzung (Kommandozeile)
+
+Dasselbe ohne Browser, z. B. für mehrere Spiele am Stück:
+
+```powershell
+python -m schiri analyze "D:\Videos\2026-11-01 Heim - Gast.mp4" --date 2026-11-01 --home "FC Heim" --away "SV Gast" --referee "Max Mustermann" --league "C-Junioren Landesklasse" --pitch grossfeld --players 11
 ```
 
 Spielform und Feld:
@@ -80,7 +94,7 @@ Die Clip-Namen folgen dem Zeitfenster der Szene. Wird ein Spiel neu analysiert, 
 - Kein Schiri-Tracking, keine Laufwege (kommt als nächster Schritt über Colab mit Grafikkarte).
 - Gemini sieht standardmäßig etwa ein Bild pro Sekunde; kurze Kontakte können fehlen.
 - Pfiff-Erkennung ist mit synthetischen Daten getestet. Die Schwellen in `schiri/config.py` (`WhistleParams`) werden an echten Veo-Videos nachjustiert.
-- Kein Login, keine Rollenrechte – nur für den eigenen PC gedacht.
+- Kein Login, keine Rollenrechte – nur für den eigenen PC und das Heimnetz gedacht.
 
 ## Tests
 ```powershell

@@ -3,67 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Schiri-Sichtung</title>
+<title>SchiriAnalyse</title>
 <link rel="icon" href="data:,">
 <style>
-:root{--bg:#f4f3ef;--card:#fff;--ink:#1c1d1f;--muted:#6a6c70;--line:#dedcd5;--accent:#1f6f5c;--accent-ink:#fff;--warn:#b5651d;--bad:#a23b3b;--chip:#ecebe6}
-@media (prefers-color-scheme:dark){:root{--bg:#141516;--card:#1d1f21;--ink:#ececea;--muted:#9a9c9f;--line:#303235;--accent:#3fa58a;--accent-ink:#0d1412;--warn:#e0954d;--bad:#e06b6b;--chip:#2a2c2f}}
+:root{--bg:#f4f3ef;--card:#fff;--ink:#1c1d1f;--muted:#6a6c70;--line:#dedcd5;--accent:#1f6f5c;--accent-ink:#fff;--warn:#b5651d;--bad:#a23b3b;--chip:#ecebe6;--field:#fbfaf7}
+@media (prefers-color-scheme:dark){:root{--bg:#141516;--card:#1d1f21;--ink:#ececea;--muted:#9a9c9f;--line:#303235;--accent:#3fa58a;--accent-ink:#0d1412;--warn:#e0954d;--bad:#e06b6b;--chip:#2a2c2f;--field:#232528}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-header h1{font-size:16px;margin:0 8px 0 0;font-weight:650;letter-spacing:.2px}
-select,button,textarea{font:inherit;color:inherit}
-select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.seg button{border:0;background:var(--card);padding:6px 10px;cursor:pointer}
-.seg button.on{background:var(--accent);color:var(--accent-ink)}
-.progress{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+a{color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+header h1{font-size:16px;margin:0 6px 0 0;font-weight:650}
+nav{display:flex;gap:4px}
+nav a{text-decoration:none;padding:6px 10px;border-radius:8px;color:var(--muted)}
+nav a.on{background:var(--chip);color:var(--ink);font-weight:600}
+.ki{margin-left:auto;font-size:13px;color:var(--muted)}
+.ki b{color:var(--ink);font-weight:600}
 main{max-width:980px;margin:0 auto;padding:16px}
+select,button,input,textarea{font:inherit;color:inherit}
+input,select,textarea{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+button{cursor:pointer}
+.btn{border:0;border-radius:9px;padding:9px 14px;font-weight:600;background:var(--chip)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:6px 10px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:default}
+.muted{color:var(--muted);font-size:13px}
+.err{color:var(--bad)}
+h2{font-size:20px;margin:4px 0 12px}
+/* list */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.toolbar select{width:auto;min-width:220px}
+.summary{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.mcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:10px 16px}
+@media (max-width:640px){.mcard{grid-template-columns:1fr}}
+.mcard h3{margin:0;font-size:17px}
+.facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{border-radius:999px;padding:2px 10px;font-size:13px;background:var(--chip)}
+.chip.ok{background:var(--accent);color:var(--accent-ink)}.chip.warn{background:var(--warn);color:#fff}.chip.bad{background:var(--bad);color:#fff}
+.mactions{display:flex;flex-wrap:wrap;gap:6px;align-items:start;justify-content:flex-end}
+.status{grid-column:1/-1;font-size:13px}
+.bar{height:4px;border-radius:2px;background:var(--chip);overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;width:30%;background:var(--accent);animation:run 1.6s ease-in-out infinite}
+@keyframes run{0%{margin-left:-30%}100%{margin-left:100%}}
+.empty{padding:50px 20px;text-align:center;color:var(--muted)}
+/* form */
+form.edit{display:grid;gap:14px}
+fieldset{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:12px 16px 16px;margin:0}
+legend{font-weight:650;padding:0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 14px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+label.f span.req::after{content:" *";color:var(--bad)}
+.row{display:flex;gap:8px;align-items:center}
+.browser{border:1px solid var(--line);border-radius:10px;margin-top:8px;max-height:320px;overflow:auto;background:var(--field)}
+.browser .path{position:sticky;top:0;background:var(--field);padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;display:flex;gap:8px;align-items:center}
+.browser button.item{display:flex;justify-content:space-between;width:100%;text-align:left;border:0;background:none;padding:7px 12px;border-bottom:1px solid var(--line)}
+.browser button.item:hover{background:var(--chip)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button,.seg label{border:0;background:var(--card);padding:7px 12px;cursor:pointer;font-size:14px}
+.seg .on{background:var(--accent);color:var(--accent-ink)}
+.check{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
+.check input{width:auto;margin-top:3px}
+.formbar{display:flex;gap:10px;justify-content:flex-end;align-items:center}
+/* review */
+.rhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.rhead .progress{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;touch-action:pan-y;transition:transform .18s ease,opacity .18s ease}
-.card.swipe-r{transform:translateX(40px) rotate(1.5deg);opacity:.4}.card.swipe-l{transform:translateX(-40px) rotate(-1.5deg);opacity:.4}.card.swipe-u{transform:translateY(-30px);opacity:.4}
+.card.swipe-r{transform:translateX(40px) rotate(1.5deg);opacity:.4}.card.swipe-l{transform:translateX(-40px) rotate(-1.5deg);opacity:.4}
 video{display:block;width:100%;max-height:62vh;background:#000}
 .vbar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);align-items:center}
-.vbar button{background:var(--chip);border:0;border-radius:6px;padding:4px 9px;cursor:pointer;font-variant-numeric:tabular-nums}
+.vbar button{background:var(--chip);border:0;border-radius:6px;padding:4px 9px;font-variant-numeric:tabular-nums}
 .vbar button.on{background:var(--accent);color:var(--accent-ink)}
 .body{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:14px 16px}
 @media (max-width:720px){.body{grid-template-columns:1fr}}
-.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
 .badge{border-radius:999px;padding:2px 10px;font-size:13px;background:var(--chip)}
 .badge.whistled{background:var(--accent);color:var(--accent-ink)}.badge.candidate{background:var(--warn);color:#fff}
-h2{font-size:22px;margin:4px 0;font-variant-numeric:tabular-nums}
-.muted{color:var(--muted);font-size:13px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.time{font-size:22px;margin:4px 0;font-variant-numeric:tabular-nums;font-weight:650}
 .ai{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.ai h3{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+.ai h4{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
 .ai .dec{font-size:18px;font-weight:650}
 .conf{height:6px;background:var(--chip);border-radius:3px;margin:6px 0}.conf i{display:block;height:100%;border-radius:3px;background:var(--accent)}
 .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 16px}
-.actions button{border:0;border-radius:10px;padding:12px 8px;cursor:pointer;font-weight:600}
+.actions button{border:0;border-radius:10px;padding:12px 8px;font-weight:600}
 .b-ok{background:var(--accent);color:var(--accent-ink)}.b-no{background:var(--chip)}.b-fix{background:var(--warn);color:#fff}
 .kbd{display:block;font-weight:400;font-size:12px;opacity:.8}
-form{display:none;padding:0 16px 16px;gap:10px;grid-template-columns:1fr 1fr}
-form.open{display:grid}
-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
-form textarea{grid-column:1/-1;min-height:64px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:8px}
-form .row{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
-form button{border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
-.saved{padding:0 16px 14px;color:var(--accent);font-size:13px;min-height:20px}
+@media (hover:none){.kbd,.keys{display:none}}
+form.fix{display:none;padding:0 16px 16px;gap:10px;grid-template-columns:1fr 1fr}
+form.fix.open{display:grid}
+form.fix textarea{grid-column:1/-1;min-height:64px}
+form.fix .formbar{grid-column:1/-1}
 .nav{display:flex;justify-content:space-between;margin-top:10px}
-.nav button{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
-.empty{padding:60px 20px;text-align:center;color:var(--muted)}
+.nav button{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px}
 .help{margin-top:14px;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
 <header>
-  <h1>Schiri-Sichtung</h1>
-  <select id="match" aria-label="Spiel"></select>
-  <div class="seg" id="role" role="group" aria-label="Rolle">
-    <button data-v="self" class="on">Selbstbewertung</button><button data-v="observer">Beobachter</button>
-  </div>
-  <div class="seg" id="filter" role="group" aria-label="Filter">
-    <button data-v="open" class="on">Offen</button><button data-v="all">Alle</button><button data-v="whistled">Pfiffe</button><button data-v="candidate">Verdacht</button>
-  </div>
-  <span class="progress" id="progress"></span>
+  <h1>SchiriAnalyse</h1>
+  <nav><a href="#/" id="navList">Spiele</a><a href="#/neu" id="navNew">Neues Spiel</a></nav>
+  <span class="ki" id="ki"></span>
 </header>
 <main id="main"><div class="empty">Lade …</div></main>
 
@@ -71,85 +109,275 @@ form button{border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
 const DEC = {foul:"Foul",no_foul:"Kein Foul",unclear:"Unklar",not_a_foul_situation:"Keine Foulsituation",relevant:"Relevant"};
 const FOUL = {tackle:"Tackling",push:"Stoßen",hold:"Halten",trip:"Beinstellen",charge:"Rempeln",strike:"Schlagen",handball:"Handspiel",dangerous_play:"Gefährliches Spiel",impeding:"Behindern",other:"Sonstiges",none:"–"};
 const SAN = {none:"Keine Karte",yellow:"Gelb",red:"Rot"};
-const PITCH = {grossfeld:"Großfeld",verkuerzt:"verkürztes Großfeld",kleinfeld:"Kleinfeld"};
 const CTYPE = {foul_suspect:"Foulverdacht",handball_suspect:"Handspielverdacht",fall:"Sturz",hard_duel:"Harter Zweikampf",flag:"Fahne",card:"Karte",confrontation:"Rudelbildung",other:"Sonstiges"};
-const S = {matchId:null,data:null,role:"self",filter:"open",idx:0,list:[]};
+const PITCH = {grossfeld:"Großfeld",verkuerzt:"verkürztes Großfeld",kleinfeld:"Kleinfeld"};
+const PLAYERS = {grossfeld:11,verkuerzt:9,kleinfeld:7};
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const opts = (o, sel) => Object.entries(o).map(([k,v]) => `<option value="${k}" ${k===sel?"selected":""}>${v}</option>`).join("");
+const opts = (o, sel) => Object.entries(o).map(([k,v]) => `<option value="${esc(k)}" ${k===sel?"selected":""}>${esc(v)}</option>`).join("");
+const api = async (url, body) => { const r = await fetch(url, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {}); const d = await r.json().catch(() => ({})); if(!r.ok) throw new Error(d.error || `Fehler ${r.status}`); return d; };
+const fmtDate = d => d ? d.split("-").reverse().join(".") : "";
+const store = { get(k, d){ try { return localStorage.getItem(k) ?? d; } catch(e){ return d; } }, set(k, v){ try { localStorage.setItem(k, v); } catch(e){} } };
+let CFG = {}, POLL = null;
 
-async function init(){
-  const matches = await (await fetch("/api/matches")).json();
-  if(!matches.length){ $("#main").innerHTML = '<div class="empty">Noch kein Spiel analysiert.<br>python -m schiri analyze &lt;video&gt;</div>'; return; }
-  $("#match").innerHTML = matches.map(m => `<option value="${esc(m.id)}">${esc(label(m))}</option>`).join("");
-  $("#match").onchange = e => load(e.target.value);
-  seg("#role", v => { S.role = v; rebuild(true); });
-  seg("#filter", v => { S.filter = v; rebuild(true); });
-  try { const r = localStorage.getItem("schiri-role"); if(r){ S.role = r; setSeg("#role", r); } } catch(e){}
-  load(matches[0].id);
+async function boot(){
+  CFG = await api("/api/config");
+  $("#navNew").style.display = CFG.local ? "" : "none";
+  const anyKi = CFG.scan_available || CFG.assess_available;
+  $("#ki").innerHTML = anyKi ? `KI: <b>${CFG.provider === "openrouter" ? "OpenRouter" : "direkt"}</b> · aktiv` : "KI: <b>kein API-Key</b> – nur Pfiff-Erkennung";
+  window.addEventListener("hashchange", route);
+  route();
 }
-function label(m){ const x = m.match || {}, p = x.pitch || {};
-  return [x.date, x.home && x.away ? `${x.home} – ${x.away}` : m.id, PITCH[p.type], x.referee].filter(Boolean).join(" · "); }
-function seg(sel, cb){ document.querySelectorAll(sel+" button").forEach(b => b.onclick = () => { setSeg(sel, b.dataset.v); if(sel==="#role"){ try{localStorage.setItem("schiri-role", b.dataset.v)}catch(e){} } cb(b.dataset.v); }); }
-function setSeg(sel, v){ document.querySelectorAll(sel+" button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); }
-async function load(id){ S.matchId = id; S.data = await (await fetch(`/api/matches/${encodeURIComponent(id)}`)).json(); rebuild(true); }
-const key = sc => (sc.clip || sc.id).split("/").pop().replace(".mp4", "");   // stable across re-analysis
+function route(){
+  clearInterval(POLL); POLL = null; document.onkeydown = null;
+  const h = location.hash.replace(/^#/, "") || "/";
+  $("#navList").classList.toggle("on", h === "/");
+  $("#navNew").classList.toggle("on", h === "/neu");
+  let m;
+  if(h === "/neu") return viewForm(null);
+  if((m = h.match(/^\/bearbeiten\/(.+)$/))) return viewForm(decodeURIComponent(m[1]));
+  if((m = h.match(/^\/sichtung\/(.+)$/))) return viewReview(decodeURIComponent(m[1]));
+  return viewList();
+}
+
+/* ---------------- Spiele */
+async function viewList(){
+  const list = await api("/api/matches");
+  const refs = [...new Set(list.flatMap(x => [x.match.referee, x.match.assistant1, x.match.assistant2]).filter(Boolean))].sort();
+  let ref = store.get("schiri-ref", "");
+  if(ref && !refs.includes(ref)) ref = "";
+  const shown = ref ? list.filter(x => [x.match.referee, x.match.assistant1, x.match.assistant2].includes(ref)) : list;
+  if(!list.length){
+    $("#main").innerHTML = `<div class="empty">Noch keine Spiele.<br><br>${CFG.local ? '<a class="btn primary" href="#/neu" style="text-decoration:none">Erstes Spiel anlegen</a>' : ""}</div>`;
+    return;
+  }
+  let sum = "";
+  if(ref){
+    const asRef = shown.filter(x => x.match.referee === ref).length;
+    const scenes = shown.reduce((a, x) => a + x.scenes, 0), rev = shown.reduce((a, x) => a + x.reviewed.self + x.reviewed.observer, 0);
+    sum = `<div class="summary"><b>${esc(ref)}</b>: ${shown.length} Spiel${shown.length === 1 ? "" : "e"} (${asRef} als Schiedsrichter, ${shown.length - asRef} als Assistent) · ${scenes} Szenen · ${rev} Bewertungen</div>`;
+  }
+  $("#main").innerHTML = `
+    <div class="toolbar"><h2 style="margin:0">Spiele</h2>
+      <select id="ref" aria-label="Schiedsrichter"><option value="">Alle Schiedsrichter</option>${refs.map(r => `<option ${r===ref?"selected":""}>${esc(r)}</option>`).join("")}</select>
+    </div>${sum}<div id="cards">${shown.map(card).join("")}</div>`;
+  $("#ref").onchange = e => { store.set("schiri-ref", e.target.value); viewList(); };
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => listAction(b.dataset.act, b.dataset.id));
+  if(list.some(x => ["queued","running"].includes(x.analysis.status))) POLL = setInterval(refreshCards, 3000);
+}
+async function refreshCards(){
+  if(!$("#cards")) return;
+  const list = await api("/api/matches");
+  for(const x of list){
+    const el = document.getElementById("m-" + x.id);
+    if(el){ const tmp = document.createElement("div"); tmp.innerHTML = card(x); el.replaceWith(tmp.firstElementChild); }
+  }
+  document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => listAction(b.dataset.act, b.dataset.id));
+  if(!list.some(x => ["queued","running"].includes(x.analysis.status))){ clearInterval(POLL); POLL = null; }
+}
+function card(x){
+  const m = x.match, a = x.analysis || {}, st = a.status;
+  const crew = [m.referee && `SR ${m.referee}`, m.assistant1 && `SRA ${m.assistant1}`, m.assistant2 && `SRA ${m.assistant2}`].filter(Boolean).join(" · ");
+  let status = "", actions = "";
+  if(st === "running" || st === "queued"){
+    const secs = a.started_at ? Math.round(Date.now()/1000 - a.started_at) : 0;
+    status = `<div class="status"><b>${st === "queued" ? "Wartet auf Start" : esc(a.step_label || "Analyse läuft")}</b>${secs ? ` · ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")} min` : ""}
+      <div class="bar"><i></i></div><span class="muted">${esc((a.last_log || "").replace(/^\[[\d:]+\]\s*/, ""))}</span></div>`;
+  } else if(st === "error"){
+    status = `<div class="status err">Fehler: ${esc(a.error)}</div>`;
+    if(CFG.local) actions += `<button class="btn small" data-act="rerun" data-id="${esc(x.id)}">Erneut starten</button>`;
+  } else if(x.scenes || st === "done"){
+    const r = x.reviewed;
+    status = `<div class="status muted">${x.scenes} Szenen (${x.whistled} gepfiffen, ${x.candidates} Verdacht) · ${x.assessed} KI-Vorschläge · gesichtet: Selbst ${r.self}, Beobachter ${r.observer}</div>`;
+  }
+  if(x.scenes) actions = `<a class="btn small primary" style="text-decoration:none" href="#/sichtung/${encodeURIComponent(x.id)}">Sichten</a>` + actions;
+  if(CFG.local && x.scenes && CFG.assess_available && x.assessed < x.scenes && !["running","queued"].includes(st))
+    actions += `<button class="btn small" data-act="assess" data-id="${esc(x.id)}">KI-Vorschläge holen</button>`;
+  if(CFG.local && st === "done" && CFG.scan_available && !x.scanned)
+    actions += `<button class="btn small" data-act="scan" data-id="${esc(x.id)}">Szenen ohne Pfiff suchen</button>`;
+  if(CFG.local) actions += `<a class="btn small" style="text-decoration:none" href="#/bearbeiten/${encodeURIComponent(x.id)}">Bearbeiten</a>`;
+  return `<article class="mcard" id="m-${esc(x.id)}">
+    <div><h3>${esc(m.home || "?")} – ${esc(m.away || "?")}</h3>
+      <div class="facts"><span class="chip">${esc(fmtDate(m.date) || "ohne Datum")}</span>${m.league ? `<span class="chip">${esc(m.league)}</span>` : ""}${x.pitch_label ? `<span class="chip">${esc(x.pitch_label)}</span>` : `<span class="chip warn">Spielform fehlt</span>`}${m.venue ? `<span class="chip">${esc(m.venue)}</span>` : ""}</div>
+      <div class="muted" style="margin-top:6px">${esc(crew)}</div></div>
+    <div class="mactions">${actions}</div>${status}</article>`;
+}
+async function listAction(act, id){
+  try {
+    if(act === "assess") await api(`/api/matches/${encodeURIComponent(id)}/assess`, {});
+    if(act === "rerun") await api(`/api/matches/${encodeURIComponent(id)}/analyze`, {});
+    if(act === "scan"){
+      if(!confirm("Das ganze Video geht zur Suche an den KI-Anbieter (ca. 1 $). Starten?")) return;
+      await api(`/api/matches/${encodeURIComponent(id)}/analyze`, {options: {gemini: true}});
+    }
+    viewList();
+  } catch(e){ alert(e.message); }
+}
+
+/* ---------------- Neues Spiel / Bearbeiten */
+async function viewForm(id){
+  if(!CFG.local){ $("#main").innerHTML = '<div class="empty">Spiele anlegen geht nur am PC selbst.</div>'; return; }
+  const sug = await api("/api/suggestions");
+  let m = {pitch:{}}, title = "Neues Spiel";
+  if(id){ const list = await api("/api/matches"); const x = list.find(y => y.id === id); if(!x){ location.hash = "#/"; return; } m = x.match; m.pitch = m.pitch || {}; title = "Spiel bearbeiten"; }
+  const p = m.pitch, ptype = p.type || store.get("schiri-pitch", "grossfeld");
+  const dl = (idn, arr) => `<datalist id="${idn}">${arr.map(v => `<option value="${esc(v)}">`).join("")}</datalist>`;
+  $("#main").innerHTML = `<h2>${title}</h2>
+  <form class="edit" id="f" autocomplete="off">
+    ${id ? `<p class="muted" style="margin:0">Video: ${esc(m.video_path || "")}</p>` : `
+    <fieldset><legend>Video</legend>
+      <label class="f"><span class="req">Videodatei (vollständiger Pfad)</span>
+        <div class="row"><input name="video_path" id="vpath" placeholder="z. B. D:\\Videos\\2026-11-01 Heim - Gast.mp4" required><button type="button" class="btn small" id="browse">Durchsuchen</button></div></label>
+      <div id="browser"></div><div id="vinfo" class="muted" style="margin-top:6px"></div>
+    </fieldset>`}
+    <fieldset><legend>Spiel</legend><div class="grid">
+      <label class="f">Datum<input type="date" name="date" value="${esc(m.date || (id ? "" : CFG.today))}"></label>
+      <label class="f">Heim<input name="home" list="dlTeams" value="${esc(m.home)}"></label>
+      <label class="f">Gast<input name="away" list="dlTeams" value="${esc(m.away)}"></label>
+      <label class="f">Liga / Altersklasse<input name="league" list="dlLeagues" value="${esc(m.league)}" placeholder="z. B. C-Junioren Landesklasse"></label>
+      <label class="f">Platz<input name="venue" id="venue" list="dlVenues" value="${esc(m.venue)}" placeholder="Maße werden je Platz gemerkt"></label>
+    </div></fieldset>
+    <fieldset><legend>Gespann</legend><div class="grid">
+      <label class="f"><span class="req">Schiedsrichter</span><input name="referee" list="dlRefs" value="${esc(m.referee)}" required></label>
+      <label class="f">Assistent 1<input name="assistant1" list="dlRefs" value="${esc(m.assistant1)}"></label>
+      <label class="f">Assistent 2<input name="assistant2" list="dlRefs" value="${esc(m.assistant2)}"></label>
+    </div></fieldset>
+    <fieldset><legend>Spielfeld</legend>
+      <div class="seg" id="ptype">${Object.entries(PITCH).map(([k,v]) => `<button type="button" data-v="${k}" class="${k===ptype?"on":""}">${v}</button>`).join("")}</div>
+      <div class="grid" style="margin-top:10px">
+        <label class="f">Spieler pro Team<input type="number" min="3" max="11" name="players" id="players" value="${esc(p.players || PLAYERS[ptype])}"></label>
+        <label class="f">Feldlänge (m)<input type="number" min="20" max="130" step="0.5" name="length_m" id="plen" value="${esc(p.length_m ?? "")}" placeholder="gemessen"></label>
+        <label class="f">Feldbreite (m)<input type="number" min="15" max="100" step="0.5" name="width_m" id="pwid" value="${esc(p.width_m ?? "")}" placeholder="gemessen"></label>
+      </div>
+      <p class="muted" style="margin:8px 0 0">Die Maße werden später für Laufwege und Distanzen gebraucht. Am besten einmal pro Platz ausmessen; mit Platzname werden sie gemerkt.</p>
+    </fieldset>
+    ${id ? "" : `<fieldset><legend>KI (optional)</legend>
+      <label class="check"><input type="checkbox" name="gemini" ${CFG.scan_available ? "checked" : "disabled"}><span>Szenen ohne Pfiff suchen <span class="muted">– ${esc(CFG.scan_model)}, das Video geht an den KI-Anbieter, ca. 1 $ pro Spiel</span></span></label>
+      <label class="check"><input type="checkbox" name="assess" id="assess" ${CFG.assess_available ? "checked" : "disabled"}><span>Bewertungsvorschläge pro Szene <span class="muted">– ${esc(CFG.assess_model)}, bei Unsicherheit ${esc(CFG.assess_model_strong)}, ca. 1–2 $ pro Spiel</span></span></label>
+      <label class="f" style="max-width:260px">Höchstens so viele Szenen bewerten<input type="number" min="0" name="assess_limit" placeholder="alle"></label>
+      ${CFG.scan_available || CFG.assess_available ? "" : `<p class="muted">Kein API-Key gefunden. <code>OPENROUTER_API_KEY</code> in <code>.env</code> eintragen und den Server neu starten.</p>`}
+    </fieldset>`}
+    <div class="formbar"><span id="ferr" class="err"></span><a href="#/" class="btn" style="text-decoration:none">Abbrechen</a><button class="btn primary" id="submit">${id ? "Speichern" : "Analyse starten"}</button></div>
+  </form>
+  ${dl("dlTeams", sug.teams)}${dl("dlLeagues", sug.leagues)}${dl("dlRefs", sug.referees)}${dl("dlVenues", Object.keys(sug.venues))}`;
+
+  let type = ptype;
+  const setType = (t, fromVenue) => {
+    const prevDefault = PLAYERS[type];
+    type = t; document.querySelectorAll("#ptype button").forEach(b => b.classList.toggle("on", b.dataset.v === t));
+    const pl = $("#players"); if(!fromVenue && (!pl.value || +pl.value === prevDefault)) pl.value = PLAYERS[t];
+  };
+  document.querySelectorAll("#ptype button").forEach(b => b.onclick = () => setType(b.dataset.v));
+  $("#venue").onchange = e => { const v = sug.venues[e.target.value]; if(!v) return;
+    setType(v.type || type, true); if(v.players) $("#players").value = v.players; if(v.length_m) $("#plen").value = v.length_m; if(v.width_m) $("#pwid").value = v.width_m; };
+  if(!id){
+    $("#browse").onclick = () => $("#browser").innerHTML ? ($("#browser").innerHTML = "") : browse($("#vpath").value);
+    $("#vpath").onchange = () => probe($("#vpath").value);
+  }
+  $("#f").onsubmit = async e => {
+    e.preventDefault();
+    const f = new FormData(e.target), o = Object.fromEntries(f);
+    const body = {date:o.date, home:o.home, away:o.away, league:o.league, venue:o.venue, referee:o.referee, assistant1:o.assistant1, assistant2:o.assistant2,
+      pitch:{type, players:o.players, length_m:o.length_m, width_m:o.width_m}};
+    store.set("schiri-pitch", type);
+    $("#submit").disabled = true; $("#ferr").textContent = "";
+    try {
+      if(id){ await api(`/api/matches/${encodeURIComponent(id)}/meta`, body); }
+      else { body.video_path = o.video_path; body.options = {gemini: !!o.gemini, assess: !!o.assess, assess_limit: o.assess_limit}; await api("/api/matches", body); }
+      location.hash = "#/";
+    } catch(err){ $("#ferr").textContent = err.message; $("#submit").disabled = false; }
+  };
+}
+async function browse(path){
+  let d;
+  try { d = await api("/api/browse?path=" + encodeURIComponent(path || "")); }
+  catch(e){ d = await api("/api/browse?path="); }
+  const join = n => d.drives ? n : d.path + (d.path.endsWith(d.sep) ? "" : d.sep) + n;
+  $("#browser").innerHTML = `<div class="browser"><div class="path">${d.parent !== null ? `<button type="button" class="btn small" data-dir="${esc(d.parent)}">↑</button>` : ""}<span>${esc(d.drives ? "Laufwerke" : d.path)}</span></div>
+    ${d.dirs.map(n => `<button type="button" class="item" data-dir="${esc(join(n))}"><span>📁 ${esc(n)}</span></button>`).join("")}
+    ${d.files.map(f => `<button type="button" class="item" data-file="${esc(join(f.name))}"><span>🎬 ${esc(f.name)}</span><span class="muted">${f.size_mb} MB</span></button>`).join("")}
+    ${!d.dirs.length && !d.files.length ? '<div class="muted" style="padding:10px 12px">Keine Ordner oder Videos hier.</div>' : ""}</div>`;
+  document.querySelectorAll("#browser [data-dir]").forEach(b => b.onclick = () => browse(b.dataset.dir));
+  document.querySelectorAll("#browser [data-file]").forEach(b => b.onclick = () => { $("#vpath").value = b.dataset.file; $("#browser").innerHTML = ""; probe(b.dataset.file); });
+}
+async function probe(path){
+  if(!path) return;
+  try {
+    const i = await api("/api/probe?path=" + encodeURIComponent(path));
+    const sec = Math.round(i.duration_s), dur = sec >= 3600 ? `${Math.floor(sec/3600)}:${String(Math.floor(sec%3600/60)).padStart(2,"0")} h` : `${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")} min`;
+    $("#vinfo").innerHTML = `${dur} · ${i.width}×${i.height} · ${i.has_panorama ? "Panorama (eigene Aufnahme)" : "normale Ansicht"} · ${i.size_mb} MB${i.has_audio ? "" : ' · <span class="err">keine Tonspur!</span>'}`;
+    const dm = path.match(/(20\d\d)[-_.](\d\d)[-_.](\d\d)/); const dateIn = document.querySelector("[name=date]");
+    if(dm && dateIn && (!dateIn.value || dateIn.value === CFG.today)) dateIn.value = `${dm[1]}-${dm[2]}-${dm[3]}`;
+  } catch(e){ $("#vinfo").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+/* ---------------- Sichtung */
+const S = {matchId:null, data:null, role:"self", filter:"open", idx:0, list:[]};
+const key = sc => (sc.clip || sc.id).split("/").pop().replace(".mp4", "");
 const rev = sc => S.data.reviews[`${key(sc)}:${S.role}`];
+async function viewReview(id){
+  try { S.data = await api(`/api/matches/${encodeURIComponent(id)}`); }
+  catch(e){ $("#main").innerHTML = `<div class="empty">${esc(e.message)}<br><br><a href="#/">Zurück zu den Spielen</a></div>`; return; }
+  S.matchId = id; S.role = store.get("schiri-role", "self"); S.filter = "open"; S.idx = 0;
+  const m = S.data.match || {};
+  $("#main").innerHTML = `<div class="rhead"><a href="#/" class="btn small" style="text-decoration:none">‹ Spiele</a>
+    <b>${esc(m.home || "")} – ${esc(m.away || "")}</b><span class="muted">${esc(fmtDate(m.date))} · SR ${esc(m.referee || "?")}</span></div>
+    <div class="rhead"><div class="seg" id="role"><button data-v="self">Selbstbewertung</button><button data-v="observer">Beobachter</button></div>
+    <div class="seg" id="filter"><button data-v="open">Offen</button><button data-v="all">Alle</button><button data-v="whistled">Pfiffe</button><button data-v="candidate">Verdacht</button></div>
+    <span class="progress" id="progress"></span></div><div id="stage"></div>`;
+  seg("#role", S.role, v => { S.role = v; store.set("schiri-role", v); rebuild(true); });
+  seg("#filter", S.filter, v => { S.filter = v; rebuild(true); });
+  document.onkeydown = keys;
+  rebuild(true);
+}
+function seg(sel, val, cb){ const set = v => document.querySelectorAll(sel+" button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); set(val);
+  document.querySelectorAll(sel+" button").forEach(b => b.onclick = () => { set(b.dataset.v); cb(b.dataset.v); }); }
 function rebuild(reset){
   const all = S.data.scenes;
   S.list = all.filter(sc => S.filter === "all" || (S.filter === "open" ? !rev(sc) : sc.type === S.filter));
   if(reset) S.idx = 0;
   S.idx = Math.min(S.idx, Math.max(0, S.list.length - 1));
-  const done = all.filter(rev).length;
-  $("#progress").textContent = `${done}/${all.length} gesichtet`;
+  $("#progress").textContent = `${all.filter(rev).length}/${all.length} gesichtet`;
   render();
 }
 function render(){
   const sc = S.list[S.idx];
-  if(!sc){ $("#main").innerHTML = `<div class="empty">${S.filter==="open" ? "Alle Szenen gesichtet." : "Keine Szenen in diesem Filter."}</div>`; return; }
+  if(!sc){ $("#stage").innerHTML = `<div class="empty">${S.filter==="open" ? "Alle Szenen gesichtet." : "Keine Szenen in diesem Filter."}</div>`; return; }
   const ai = sc.ai, r = rev(sc), c = sc.candidate;
   const aiHtml = ai ? `<div class="dec">${esc(DEC[ai.decision]||ai.decision)}${ai.sanction && ai.sanction!=="none" ? " · "+esc(SAN[ai.sanction]) : ""}</div>
       <div>${esc(FOUL[ai.foul_type]||"")} ${ai.rule_ref ? `<span class="muted">· ${esc(ai.rule_ref)}</span>` : ""}</div>
-      <div class="conf" title="Sicherheit"><i style="width:${Math.round((ai.confidence||0)*100)}%"></i></div>
+      <div class="conf"><i style="width:${Math.round((ai.confidence||0)*100)}%"></i></div>
       <div>${esc(ai.reason)}</div><div class="muted">Sicherheit ${Math.round((ai.confidence||0)*100)} % · ${esc(ai.model||"")}</div>`
     : `<div class="muted">Kein KI-Vorschlag für diese Szene.</div>`;
-  $("#main").innerHTML = `
+  $("#stage").innerHTML = `
   <article class="card" id="card">
     <video id="vid" src="/media/${encodeURIComponent(S.matchId)}/${esc(sc.clip)}" autoplay muted loop playsinline preload="auto"></video>
-    <div class="vbar">
-      <button id="snd">Ton an</button>
+    <div class="vbar"><button id="snd">Ton an</button>
       <button data-rate="1" class="on">1×</button><button data-rate="0.5">0,5×</button><button data-rate="0.25">0,25×</button>
       <button id="back">−1 Bild</button><button id="fwd">+1 Bild</button>
-      <span class="muted">${sc.type==="whistled" ? "Pfiff" : "Szene"} bei ${(sc.t_event - sc.start).toFixed(1).replace(".", ",")} s im Clip</span>
-    </div>
-    <div class="body">
-      <div>
-        <div class="meta"><span class="badge ${sc.type}">${sc.type==="whistled" ? "Gepfiffen" : "Kein Pfiff · Verdacht"}</span>
-          <span class="badge">${esc(sc.detected_by.join(" + "))}</span><span class="badge">${S.idx+1} / ${S.list.length}</span></div>
-        <h2>${esc(sc.time_label)} <span class="muted">(${sc.minute}. Videominute)</span></h2>
+      <span class="muted">${sc.type==="whistled" ? "Pfiff" : "Szene"} bei ${(sc.t_event - sc.start).toFixed(1).replace(".", ",")} s im Clip</span></div>
+    <div class="body"><div>
+        <div class="meta"><span class="badge ${sc.type}">${sc.type==="whistled" ? "Gepfiffen" : "Kein Pfiff · Verdacht"}</span><span class="badge">${esc(sc.detected_by.join(" + "))}</span><span class="badge">${S.idx+1} / ${S.list.length}</span></div>
+        <div class="time">${esc(sc.time_label)} <span class="muted">(${sc.minute + 1}. Minute im Video)</span></div>
         ${c ? `<div><b>${esc(CTYPE[c.type]||c.type)}</b> – ${esc(c.description)} ${c.location ? `<span class="muted">· ${esc(c.location)}</span>` : ""}</div>` : ""}
         ${sc.whistle ? `<div class="muted">Pfiff ${sc.whistle.duration.toFixed(1)} s · ${Math.round(sc.whistle.peak_hz)} Hz · Erkennung ${Math.round(sc.whistle.confidence*100)} %</div>` : ""}
         ${r ? `<div class="muted" style="margin-top:8px">Bereits gesichtet: ${esc(actionLabel(r))}</div>` : ""}
-      </div>
-      <div class="ai"><h3>KI-Vorschlag</h3>${aiHtml}</div>
-    </div>
+      </div><div class="ai"><h4>KI-Vorschlag</h4>${aiHtml}</div></div>
     <div class="actions">
       <button class="b-no" id="aNo">Verwerfen<span class="kbd">← · kein relevanter Vorfall</span></button>
       <button class="b-fix" id="aFix">Korrigieren<span class="kbd">↑ · eigene Bewertung</span></button>
-      <button class="b-ok" id="aOk">${ai ? "Vorschlag übernehmen" : "Relevant"}<span class="kbd">→</span></button>
-    </div>
-    <form id="form">
-      <label>Entscheidung<select name="decision">${opts({foul:"Foul",no_foul:"Kein Foul",unclear:"Unklar",not_a_foul_situation:"Keine Foulsituation"}, r?.decision || ai?.decision)}</select></label>
-      <label>Schiri lag richtig?<select name="referee_correct">${opts({"":"–",yes:"Ja",no:"Nein",partly:"Teilweise"}, r?.referee_correct || "")}</select></label>
-      <label>Foulart<select name="foul_type">${opts(FOUL, r?.foul_type || ai?.foul_type || "none")}</select></label>
-      <label>Persönliche Strafe<select name="sanction">${opts(SAN, r?.sanction || ai?.sanction || "none")}</select></label>
+      <button class="b-ok" id="aOk">${ai ? "Vorschlag übernehmen" : "Relevant"}<span class="kbd">→</span></button></div>
+    <form class="fix" id="fix">
+      <label class="f">Entscheidung<select name="decision">${opts({foul:"Foul",no_foul:"Kein Foul",unclear:"Unklar",not_a_foul_situation:"Keine Foulsituation"}, r?.decision || ai?.decision)}</select></label>
+      <label class="f">Schiri lag richtig?<select name="referee_correct">${opts({"":"–",yes:"Ja",no:"Nein",partly:"Teilweise"}, r?.referee_correct || "")}</select></label>
+      <label class="f">Foulart<select name="foul_type">${opts(FOUL, r?.foul_type || ai?.foul_type || "none")}</select></label>
+      <label class="f">Persönliche Strafe<select name="sanction">${opts(SAN, r?.sanction || ai?.sanction || "none")}</select></label>
       <textarea name="comment" placeholder="Kommentar (z. B. Stellungsspiel, Vorteil, Körpersprache)">${esc(r?.comment || "")}</textarea>
-      <div class="row"><button type="button" id="fCancel">Abbrechen</button><button type="submit" class="b-ok">Speichern</button></div>
+      <div class="formbar"><span id="saved" class="err"></span><button type="button" class="btn" id="fCancel">Abbrechen</button><button type="submit" class="btn primary">Speichern</button></div>
     </form>
-    <div class="saved" id="saved"></div>
   </article>
   <div class="nav"><button id="prev">‹ Zurück</button><button id="next">Weiter ›</button></div>
-  <p class="help">Tastatur: → übernehmen · ← verwerfen · ↑ korrigieren · Leertaste Pause · , und . Einzelbild · N/P nächste/vorige Szene</p>`;
+  <p class="help keys">Tastatur: → übernehmen · ← verwerfen · ↑ korrigieren · Leertaste Pause · , und . Einzelbild · N/P nächste/vorige Szene</p>`;
   wire(sc);
 }
 function actionLabel(r){ return r.action==="dismiss" ? "verworfen" : r.action==="confirm" ? "übernommen" : `${DEC[r.decision]||r.decision}${r.sanction && r.sanction!=="none" ? ", "+SAN[r.sanction] : ""}`; }
@@ -158,14 +386,14 @@ function wire(sc){
   $("#snd").onclick = e => { v.muted = !v.muted; e.target.textContent = v.muted ? "Ton an" : "Ton aus"; };
   document.querySelectorAll("[data-rate]").forEach(b => b.onclick = () => { v.playbackRate = +b.dataset.rate; document.querySelectorAll("[data-rate]").forEach(x => x.classList.toggle("on", x===b)); });
   $("#back").onclick = () => step(-1); $("#fwd").onclick = () => step(1);
-  $("#aOk").onclick = () => act("confirm"); $("#aNo").onclick = () => act("dismiss"); $("#aFix").onclick = openForm;
-  $("#fCancel").onclick = () => $("#form").classList.remove("open");
-  $("#form").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target); save({action:"correct", ...Object.fromEntries(f), agrees_with_ai: sc.ai ? f.get("decision")===sc.ai.decision : null}); };
+  $("#aOk").onclick = () => act("confirm"); $("#aNo").onclick = () => act("dismiss"); $("#aFix").onclick = openFix;
+  $("#fCancel").onclick = () => $("#fix").classList.remove("open");
+  $("#fix").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target); save({action:"correct", ...Object.fromEntries(f), agrees_with_ai: sc.ai ? f.get("decision")===sc.ai.decision : null}); };
   $("#prev").onclick = () => go(-1); $("#next").onclick = () => go(1);
   swipe($("#card"));
 }
 function step(n){ const v = $("#vid"); v.pause(); v.currentTime = Math.max(0, v.currentTime + n*0.04); }
-function openForm(){ $("#form").classList.add("open"); $("#form select").focus(); }
+function openFix(){ $("#fix").classList.add("open"); $("#fix select").focus(); }
 function act(action){
   const sc = S.list[S.idx], ai = sc.ai;
   const base = {action, agrees_with_ai: action==="confirm" && ai ? true : null};
@@ -176,8 +404,8 @@ function act(action){
 async function save(review, anim){
   const sc = S.list[S.idx];
   review = {...review, scene_id: key(sc), role: S.role};
-  const res = await fetch(`/api/matches/${encodeURIComponent(S.matchId)}/reviews`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(review)});
-  if(!res.ok){ $("#saved").textContent = "Speichern fehlgeschlagen."; return; }
+  try { await api(`/api/matches/${encodeURIComponent(S.matchId)}/reviews`, review); }
+  catch(e){ $("#saved").textContent = "Speichern fehlgeschlagen."; return; }
   S.data.reviews[`${key(sc)}:${S.role}`] = review;
   if(anim) $("#card").classList.add(anim);
   setTimeout(() => { if(S.filter !== "open") S.idx++; rebuild(false); }, anim ? 180 : 0);
@@ -185,19 +413,19 @@ async function save(review, anim){
 function go(n){ S.idx = Math.max(0, Math.min(S.list.length-1, S.idx+n)); render(); }
 function swipe(el){
   let x0=null, y0=null;
-  el.addEventListener("pointerdown", e => { if(e.target.closest("button,select,textarea,video")) return; x0=e.clientX; y0=e.clientY; });
+  el.addEventListener("pointerdown", e => { if(e.target.closest("button,select,textarea,video,input")) return; x0=e.clientX; y0=e.clientY; });
   el.addEventListener("pointerup", e => { if(x0===null) return; const dx=e.clientX-x0, dy=e.clientY-y0; x0=null;
-    if(Math.abs(dx)>80 && Math.abs(dx)>Math.abs(dy)) act(dx>0 ? "confirm" : "dismiss"); else if(dy<-80) openForm(); });
+    if(Math.abs(dx)>80 && Math.abs(dx)>Math.abs(dy)) act(dx>0 ? "confirm" : "dismiss"); else if(dy<-80) openFix(); });
 }
-document.addEventListener("keydown", e => {
-  if(e.target.closest("textarea,select") || !S.list.length) return;
+function keys(e){
+  if(e.target.closest("textarea,select,input") || !S.list.length || !$("#card")) return;
   const v = $("#vid");
-  if(e.key==="ArrowRight") act("confirm"); else if(e.key==="ArrowLeft") act("dismiss"); else if(e.key==="ArrowUp"){ e.preventDefault(); openForm(); }
+  if(e.key==="ArrowRight") act("confirm"); else if(e.key==="ArrowLeft") act("dismiss"); else if(e.key==="ArrowUp"){ e.preventDefault(); openFix(); }
   else if(e.key===" " && v){ e.preventDefault(); v.paused ? v.play() : v.pause(); }
   else if(e.key===",") step(-1); else if(e.key===".") step(1);
   else if(e.key==="n") go(1); else if(e.key==="p") go(-1);
-});
-init();
+}
+boot();
 </script>
 </body>
 </html>
