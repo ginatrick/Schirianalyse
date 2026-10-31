@@ -4,6 +4,7 @@ Stand 31.10.2026. Neue Entscheidungen oben ergänzen.
 
 | Datum | Thema | Entscheidung |
 | --- | --- | --- |
+| 2026-10-31 | Lizenzen | Produktiv-Worker ohne AGPL/GPL: RF-DETR (Apache-2.0) statt Ultralytics YOLO, supervision (MIT), SAM 2 (Apache-2.0); YOLO und opensportslib nur offline für Vergleiche (Details: docs/lizenzen.md) |
 | 2026-10-31 | Betrieb | Von Anfang an online (Vercel, Supabase Cloud EU, Cloud-GPU), keine lokale Phase |
 | 2026-10-31 | KI-Bewertung | Online-Sprachmodell per API hinter austauschbarer Schnittstelle; in Phase 5 Claude (Haiku 5.5 / Sonnet 5.5) gegen Gemini Flash an Testszenen vergleichen |
 | 2026-10-31 | Pilot | Zunächst ein Schiri; läuft es stabil, Vorstellung beim Kreislehrwart; spätere Gruppen noch offen |

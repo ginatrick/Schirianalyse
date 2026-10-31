@@ -27,7 +27,7 @@ Komponenten:
 - **Analyse-Worker (Python, Cloud-GPU)** – holt Jobs aus der Queue, schreibt Szenen und Laufwege zurück. Module:
   - Import und Vorschau (ffmpeg: Proxy-Video, Audio, Frames bei Bedarf)
   - Pfiff-Erkennung (Bandpass + Klassifikator, Basis RefereeChallenge)
-  - Tracking und Kalibrierung (YOLO + roboflow/sports, Spielfeld-Keypoints → Meter)
+  - Tracking und Kalibrierung (RF-DETR + roboflow/sports, Spielfeld-Keypoints → Meter)
   - Schiri und Assistenten (Klick, Trikotfarbe, Re-ID; Laufweg, Distanz, Abstand)
   - Ereignisse und Kandidaten (opensportslib-Spotting; Stürze, Zweikämpfe ohne Pfiff)
   - Bewertungsvorschlag (Sprachmodell + Regelwerk-DB, VARS als zweite Meinung)
@@ -48,7 +48,7 @@ Tracking, Ton und Ereigniserkennung können weitgehend übernommen werden; die F
 | Baustein | Einsatz im Tool | Lizenz / Einschränkung |
 | --- | --- | --- |
 | [roboflow/sports](https://github.com/roboflow/sports) | Erkennung von Spielern, Ball und Schiri; Spielfeld-Keypoints für die Umrechnung in Meter | Lizenz im Repo prüfen; Ballverfolgung und Kalibrierung sind laut Autoren noch Schwachstellen |
-| Ultralytics YOLO + supervision (Tracker) | Detektor und Tracking (ByteTrack / BoT-SORT) | YOLO ist AGPL-3.0: bei Online-Betrieb Quellcodepflicht oder Lizenz kaufen |
+| RF-DETR + supervision (Tracker) | Detektor und Tracking (ByteTrack) | Apache-2.0 / MIT; Ultralytics YOLO (AGPL-3.0) nur offline zum Vergleich |
 | [Ayan-OP/Soccer-Analytics](https://github.com/Ayan-OP/Soccer-Analytics) | Vorlage für Team-Zuordnung per Trikotfarbe, Kamerabewegung, Geschwindigkeit und Distanz | Lernvorlage, nicht direkt übernehmen |
 | [dvermaas/RefereeChallenge](https://github.com/dvermaas/RefereeChallenge) | Startpunkt für Pfiff-Erkennung und Haltungserkennung für Handzeichen | Roboterfußball-Kontext, mit Veo-Ton nachtrainieren |
 | [OpenSportsLab soccernetpro / opensportslib](https://github.com/OpenSportsLab/opensportslib) | Ereignis-Spotting (Aus, Einwurf, Freistoß, Tor); X-VARS-Adapter für Foulfragen | Lizenz prüfen; mit TV-Bildern trainiert |
@@ -208,7 +208,7 @@ Weil das Tool von Anfang an online läuft, muss der Datenschutz vor Phase 1 gekl
 - **Datenschutz:** Videos zeigen Minderjährige, bewertet werden identifizierbare Personen, alle Daten liegen in der Cloud. Nötig: Einwilligungen bzw. Vereinsregelung, EU-Hosting, Auftragsverarbeitungsverträge (Vercel, Supabase, GPU- und KI-Anbieter), Löschfristen.
 - **Fremde Aufnahmen:** Ohne Panorama sind Schiri und vor allem Assistenten oft nicht im Bild; Laufdaten bleiben dort lückenhaft.
 - **Domänenlücke:** Foul- und Spotting-Modelle kennen TV-Bilder, nicht Veo; Qualität in Phase 0 messen.
-- **Lizenzen:** YOLO (AGPL-3.0) betrifft den Online-Betrieb direkt; dazu MVFoul (GPL-3.0) und SoccerNet-Daten (NDA).
+- **Lizenzen:** gelöst durch RF-DETR statt YOLO; AGPL/GPL-Bausteine (YOLO, opensportslib, MVFoul) und SoccerNet-Daten (NDA) nur offline (siehe `docs/lizenzen.md`).
 - **Laufende Kosten:** GPU nur bei Bedarf, Analyse auf dem Proxy-Video, KI nur für erkannte Szenen, günstiges Modell zuerst.
 - **Bewertungskonflikte:** Selbst- und Beobachterbewertung können sich widersprechen; Sichtbarkeit und Freigabe brauchen klare Regeln.
 - **Störgeräusche und Verwechslungen:** Pfiffe vom Nachbarplatz, Zuschauerpfiffe, Wind; Torwart oder Betreuer in Schiri-Farbe.

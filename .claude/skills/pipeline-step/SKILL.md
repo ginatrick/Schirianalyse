@@ -21,4 +21,5 @@ Order: `import -> audio_whistle -> vision_tracking -> game_state -> whistled_sce
 
 ## Never
 - Load whole videos into memory; stream frames.
-- Add a model or repo without noting its license.
+- Add a model or repo without noting its license in `docs/lizenzen.md`.
+- Import AGPL/GPL code (Ultralytics, opensportslib, MVFoul) into production steps; use RF-DETR, supervision and SAM 2.

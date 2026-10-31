@@ -34,4 +34,4 @@ Planung abgeschlossen. Aktuell: **Phase 0 (Vorbereitung und Testdaten)**, danach
 Möglichst günstig: GPU nur bei Bedarf, Analyse auf dem Proxy-Video, KI nur für erkannte Szenen, günstiges Modell zuerst, Batch-API nutzen. Zielbudget Pilot rund 40 €/Monat.
 
 ## Lizenzen
-Ultralytics YOLO (AGPL-3.0) und MVFoul (GPL-3.0) vor Einbindung prüfen; jede Lizenzentscheidung in `docs/entscheidungen.md` festhalten.
+Produktiv-Worker ohne AGPL/GPL-Code: RF-DETR statt Ultralytics YOLO, opensportslib und MVFoul nur offline. Übersicht in `docs/lizenzen.md`; neue Bausteine dort eintragen.
