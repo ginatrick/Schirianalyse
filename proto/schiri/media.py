@@ -54,11 +54,13 @@ def extract_audio(video: Path, out: Path, sample_rate: int = 16000) -> None:
           "-c:a", "pcm_s16le", str(out)])
 
 
-def make_scan_video(video: Path, out: Path, start_s: float, duration_s: float) -> None:
-    """Small low-fps version for the Gemini scan (keeps audio so the model hears whistles)."""
+def make_scan_video(video: Path, out: Path, start_s: float, duration_s: float, small: bool = False) -> None:
+    """Low-fps version for the Gemini scan (keeps audio so the model hears whistles).
+    small=True for base64 upload via OpenRouter: Gemini samples about 1 frame per second anyway."""
+    vf, crf, abr = ("scale=-2:360,fps=1", "32", "32k") if small else ("scale=-2:480,fps=5", "30", "48k")
     _run([_bin("ffmpeg"), "-y", "-ss", f"{start_s:.2f}", "-i", str(video), "-t", f"{duration_s:.2f}",
-          "-vf", "scale=-2:480,fps=5", "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
-          "-c:a", "aac", "-ac", "1", "-b:a", "48k", str(out)])
+          "-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", crf,
+          "-c:a", "aac", "-ac", "1", "-b:a", abr, str(out)])
 
 
 def cut_clip(proxy: Path, out: Path, start_s: float, end_s: float) -> None:

@@ -42,8 +42,10 @@ def cmd_analyze(args) -> None:
     meta.setdefault("id", m.id)
     m.write_meta(meta)
 
-    use_gemini = not args.no_gemini and bool(os.environ.get("GEMINI_API_KEY"))
-    use_assess = not args.no_assess and bool(os.environ.get("ANTHROPIC_API_KEY"))
+    use_gemini = not args.no_gemini and s.scan_available()
+    use_assess = not args.no_assess and s.assess_available()
+    if use_gemini or use_assess:
+        pipeline.log(f"KI-Zugang: {s.provider} · Suche {s.scan_model if use_gemini else '-'} · Bewertung {s.assess_model if use_assess else '-'}")
 
     pipeline.log(f"Spiel '{m.id}' – Daten in {m.dir}")
     pipeline.step_import(m, video, force=args.force)
@@ -51,13 +53,13 @@ def cmd_analyze(args) -> None:
     if use_gemini:
         pipeline.step_gemini(m, s, force=args.force)
     else:
-        pipeline.log("Gemini-Suche übersprungen (kein GEMINI_API_KEY oder --no-gemini) – nur gepfiffene Szenen")
+        pipeline.log("Gemini-Suche übersprungen (kein API-Key oder --no-gemini) – nur gepfiffene Szenen")
     pipeline.step_scenes(m, s, use_gemini)
     pipeline.step_clips(m, force=args.force)
     if use_assess:
         pipeline.step_assess(m, s, limit=args.assess_limit, force=args.force)
     else:
-        pipeline.log("KI-Bewertung übersprungen (kein ANTHROPIC_API_KEY oder --no-assess)")
+        pipeline.log("KI-Bewertung übersprungen (kein API-Key oder --no-assess)")
     f = pipeline.publish(m)
     pipeline.cleanup_original_copies(m)
     n = len(__import__("json").loads(f.read_text(encoding="utf-8"))["scenes"])

@@ -84,7 +84,7 @@ def step_gemini(m: Match, s: Settings, force: bool = False) -> dict:
     imp = m.result("import")
     cands, usage = gemini_scan.scan(Path(imp["source"]), imp["duration_s"], m.step_dir("gemini_scan"), s, m.meta)
     log(f"{len(cands)} Kandidaten von Gemini")
-    return m.save("gemini_scan", {"candidates": cands, "usage": usage, "model": s.gemini_model}, t0)
+    return m.save("gemini_scan", {"candidates": cands, "usage": usage, "model": s.scan_model, "provider": s.provider}, t0)
 
 
 def step_scenes(m: Match, s: Settings, use_gemini: bool) -> dict:
@@ -118,7 +118,7 @@ def step_assess(m: Match, s: Settings, limit: int | None, force: bool = False) -
     prev = {} if force else {window_key(sc): sc.get("ai") for sc in (m.result("assessment") or {}).get("scenes", [])}
     scs = m.result("clips")["scenes"]
     proxy = m.step_dir("import") / "proxy.mp4"
-    usage_total = {"input_tokens": 0, "output_tokens": 0, "calls": 0}
+    usage_total = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "calls": 0}
     done = 0
     for sc in scs:
         if prev.get(window_key(sc)):
@@ -127,8 +127,8 @@ def step_assess(m: Match, s: Settings, limit: int | None, force: bool = False) -
         if limit is not None and done >= limit:
             continue
         sc["ai"], usage = assess.assess_scene(sc, proxy, m.step_dir("assessment") / window_key(sc), s, m.meta)
-        for k in ("input_tokens", "output_tokens"):
-            usage_total[k] += usage.get(k, 0)
+        for k in ("input_tokens", "output_tokens", "cost_usd"):
+            usage_total[k] += usage.get(k, 0) or 0
         usage_total["calls"] += usage.get("calls", 1)
         done += 1
         log(f"Bewertet {sc['id']} ({sc['time_label']}): {sc['ai'].get('decision')} ({sc['ai'].get('confidence')})")

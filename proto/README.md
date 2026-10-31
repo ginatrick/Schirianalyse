@@ -6,7 +6,7 @@ Erster Prototyp ohne Vercel und Supabase: Ein Veo-Video wird auf deinem PC analy
 | --- | --- | --- |
 | Proxy-Video und Tonspur (ffmpeg) | lokal | – |
 | Pfiff-Erkennung über den Ton | lokal, nur CPU | – |
-| Kandidaten ohne Pfiff (Gemini sieht das ganze Spiel) | online, optional | ca. 0,25 $ pro Spiel |
+| Kandidaten ohne Pfiff (Gemini sieht das ganze Spiel) | online, optional | ca. 1 $ pro Spiel (Flash-Lite ca. 0,40 $) |
 | Bewertungsvorschlag pro Szene (Claude) | online, optional | ca. 1–2 $ pro Spiel |
 | Swipe-Sichtung | lokal im Browser | – |
 
@@ -24,9 +24,11 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Optional die API-Keys in `.env` im Projektordner eintragen (Vorlage `.env.example`):
-- `GEMINI_API_KEY` – Kandidatensuche (bezahlte API-Stufe verwenden, das ganze Video geht an Google)
-- `ANTHROPIC_API_KEY` – Bewertungsvorschläge
+Optional den KI-Zugang in `.env` im Projektordner eintragen (Vorlage `.env.example`):
+- **Empfohlen: `OPENROUTER_API_KEY`** – ein Key für beides. Standardmodelle: `google/gemini-3.8-flash` für die Suche, `anthropic/claude-haiku-5.5` für Vorschläge, `anthropic/claude-sonnet-5.5` bei unsicheren Szenen. Anpassbar über `SCAN_MODEL`, `ASSESS_MODEL`, `ASSESS_MODEL_STRONG`.
+- Alternativ direkt: `GEMINI_API_KEY` und `ANTHROPIC_API_KEY` mit `KI_PROVIDER=direct`.
+
+Bei OpenRouter geht das Video als Datei im Aufruf mit (5-Minuten-Abschnitte, 360p, 1 Bild pro Sekunde, Ton). Google bearbeitet solche Aufrufe über Vertex AI. In den Datenschutz-Einstellungen von OpenRouter Anbieter ausschließen, die Daten zum Training verwenden.
 
 ## Benutzung
 
@@ -51,7 +53,7 @@ Spielform und Feld:
 
 Weitere Befehle:
 - `--no-gemini` / `--no-assess` – KI-Schritte auslassen
-- `--assess-limit 5` – nur 5 Szenen bewerten lassen (Kosten testen)
+- `--assess-limit 5` – nur 5 Szenen bewerten lassen (Kosten testen); die tatsächlichen Kosten stehen danach in `steps/gemini_scan/result.json` und `steps/assessment/result.json` (`cost_usd`)
 - `python -m schiri assess <match-id>` – Bewertungsvorschläge nachträglich holen
 - `python -m schiri list` – analysierte Spiele
 - `--force` – alles neu rechnen; ohne werden fertige Schritte übersprungen

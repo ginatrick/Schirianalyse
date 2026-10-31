@@ -1,5 +1,6 @@
-"""Assessment proposal per scene via the Claude API (frames + scene facts + rule summary).
-Requires ANTHROPIC_API_KEY. Cheap model first, stronger model when confidence is low."""
+"""Assessment proposal per scene via Claude (frames + scene facts + rule summary), through
+OpenRouter (OPENROUTER_API_KEY) or directly (ANTHROPIC_API_KEY).
+Cheap model first, stronger model when confidence is low."""
 from __future__ import annotations
 
 import base64
@@ -65,7 +66,7 @@ def _parse(text: str) -> dict:
     return data
 
 
-def _call(client, model: str, images: list[Path], facts: str) -> tuple[dict, dict]:
+def _call_direct(client, model: str, images: list[Path], facts: str) -> tuple[dict, dict]:
     content = []
     for img in images:
         content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
@@ -82,24 +83,35 @@ def _call(client, model: str, images: list[Path], facts: str) -> tuple[dict, dic
     return _parse(text), usage
 
 
-def assess_scene(scene: dict, proxy: Path, work: Path, s: Settings, meta: dict | None = None) -> tuple[dict, dict]:
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
-        raise SystemExit("ANTHROPIC_API_KEY fehlt (.env). Ohne Key: analyze mit --no-assess starten.")
-    import anthropic
+def _call_openrouter(_client, model: str, images: list[Path], facts: str) -> tuple[dict, dict]:
+    from . import llm
+    content = [llm.image_part(img) for img in images]
+    content.append({"type": "text", "text": facts + "\nBewerte die Szene."})
+    text, usage = llm.chat(model, content, system=SYSTEM, max_tokens=600)
+    return _parse(text), usage
 
-    client = anthropic.Anthropic(api_key=key)
+
+def assess_scene(scene: dict, proxy: Path, work: Path, s: Settings, meta: dict | None = None) -> tuple[dict, dict]:
+    if s.provider == "openrouter":
+        client, call = None, _call_openrouter
+    else:
+        key = os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise SystemExit("ANTHROPIC_API_KEY fehlt (.env). Ohne Key: analyze mit --no-assess starten.")
+        import anthropic
+        client, call = anthropic.Anthropic(api_key=key), _call_direct
+
     start, end = _window(scene)
     frames = media.extract_frames(proxy, work.parent / "frames" / work.name, start, end, count=10, width=1024)
     facts = _facts(scene, meta)
-    result, usage = _call(client, s.claude_model, frames, facts)
-    result["model"] = s.claude_model
-    if result["confidence"] < s.escalate_below and s.claude_model_strong:
-        strong, u2 = _call(client, s.claude_model_strong, frames, facts)
-        strong["model"] = s.claude_model_strong
+    result, usage = call(client, s.assess_model, frames, facts)
+    result["model"] = s.assess_model
+    if result["confidence"] < s.escalate_below and s.assess_model_strong:
+        strong, u2 = call(client, s.assess_model_strong, frames, facts)
+        strong["model"] = s.assess_model_strong
         strong["first_opinion"] = {k: result.get(k) for k in ("decision", "confidence")}
-        for k in ("input_tokens", "output_tokens", "calls"):
-            usage[k] += u2[k]
+        for k in ("input_tokens", "output_tokens", "cost_usd", "calls"):
+            usage[k] = (usage.get(k, 0) or 0) + (u2.get(k, 0) or 0)
         result = strong
     work.mkdir(parents=True, exist_ok=True)
     (work / "assessment.json").write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")

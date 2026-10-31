@@ -1,7 +1,7 @@
 """Gemini watches the whole match (in chunks) and lists candidate scenes.
 
-Sends low-resolution video with audio to the Gemini API. Requires GEMINI_API_KEY.
-Use only the paid API tier for real match videos (privacy, see docs/datenschutz)."""
+Sends low-resolution video with audio either via OpenRouter (OPENROUTER_API_KEY) or directly
+to the Gemini API (GEMINI_API_KEY). Use paid access only for real match videos (docs/datenschutz)."""
 from __future__ import annotations
 
 import json
@@ -52,48 +52,26 @@ def _parse_json(text: str) -> list[dict]:
 
 
 def scan(video: Path, duration_s: float, work: Path, s: Settings, meta: dict | None = None) -> tuple[list[dict], dict]:
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        raise SystemExit("GEMINI_API_KEY fehlt (.env). Ohne Key: analyze mit --no-gemini starten.")
-    from google import genai
-    from google.genai import types
-
-    client = genai.Client(api_key=key)
     context = _context(meta or {})
     prompt = PROMPT + (f"\nSpielkontext: {context}." if context else "")
-    chunk = s.gemini_chunk_s
+    ask = _openrouter_asker(s, prompt) if s.provider == "openrouter" else _direct_asker(s, prompt)
+    chunk = s.scan_chunk_s
     n_chunks = max(1, math.ceil(duration_s / chunk))
     candidates: list[dict] = []
-    usage = {"prompt_tokens": 0, "output_tokens": 0, "chunks": n_chunks}
+    usage = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "chunks": n_chunks}
     for i in range(n_chunks):
         start = i * chunk
         dur = min(chunk, duration_s - start)
         if dur < 5:
             continue
         part = work / f"scan_{i:02d}.mp4"
-        print(f"  Gemini-Abschnitt {i + 1}/{n_chunks} vorbereiten ...", flush=True)
-        media.make_scan_video(video, part, start, dur)
-        f = client.files.upload(file=str(part))
-        try:
-            while getattr(f.state, "name", str(f.state)) == "PROCESSING":
-                time.sleep(5)
-                f = client.files.get(name=f.name)
-            resp = client.models.generate_content(
-                model=s.gemini_model,
-                contents=[f, prompt],
-                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
-            )
-        finally:
-            try:
-                client.files.delete(name=f.name)   # nothing stays at Google longer than needed
-            except Exception:
-                pass
-        (work / f"scan_{i:02d}.json").write_text(resp.text or "", encoding="utf-8")
-        um = getattr(resp, "usage_metadata", None)
-        if um:
-            usage["prompt_tokens"] += getattr(um, "prompt_token_count", 0) or 0
-            usage["output_tokens"] += getattr(um, "candidates_token_count", 0) or 0
-        for item in _parse_json(resp.text or ""):
+        print(f"  Gemini-Abschnitt {i + 1}/{n_chunks} ...", flush=True)
+        media.make_scan_video(video, part, start, dur, small=s.provider == "openrouter")
+        text, u = ask(part)
+        (work / f"scan_{i:02d}.json").write_text(text or "", encoding="utf-8")
+        for k in ("input_tokens", "output_tokens", "cost_usd"):
+            usage[k] += u.get(k, 0) or 0
+        for item in _parse_json(text or ""):
             t = _parse_time(item.get("time", ""))
             if t is None or t > dur + 1:
                 continue
@@ -108,3 +86,40 @@ def scan(video: Path, duration_s: float, work: Path, s: Settings, meta: dict | N
         part.unlink(missing_ok=True)
     candidates.sort(key=lambda c: c["t"])
     return candidates, usage
+
+
+def _openrouter_asker(s: Settings, prompt: str):
+    from . import llm
+
+    def ask(part: Path) -> tuple[str, dict]:
+        return llm.chat(s.scan_model, [{"type": "text", "text": prompt}, llm.video_part(part)], max_tokens=4000)
+    return ask
+
+
+def _direct_asker(s: Settings, prompt: str):
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise SystemExit("GEMINI_API_KEY fehlt (.env). Ohne Key: analyze mit --no-gemini starten.")
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=key)
+
+    def ask(part: Path) -> tuple[str, dict]:
+        f = client.files.upload(file=str(part))
+        try:
+            while getattr(f.state, "name", str(f.state)) == "PROCESSING":
+                time.sleep(5)
+                f = client.files.get(name=f.name)
+            resp = client.models.generate_content(
+                model=s.scan_model, contents=[f, prompt],
+                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
+            )
+        finally:
+            try:
+                client.files.delete(name=f.name)   # nothing stays at Google longer than needed
+            except Exception:
+                pass
+        um = getattr(resp, "usage_metadata", None)
+        return resp.text or "", {"input_tokens": getattr(um, "prompt_token_count", 0) or 0,
+                                 "output_tokens": getattr(um, "candidates_token_count", 0) or 0}
+    return ask
