@@ -335,7 +335,8 @@ class Handler(BaseHTTPRequestHandler):
                 m, Path(m.meta["video_path"]), s,
                 use_gemini=opts.get("gemini", False) and s.scan_available(),
                 use_assess=opts.get("assess", False) and s.assess_available(),
-                assess_limit=opts.get("assess_limit"), force=force)
+                assess_limit=opts.get("assess_limit"), force=force,
+                use_situations=opts.get("situations", opts.get("gemini", False)) and s.scan_available())
         return JOBS.submit(match_id, kind, run)
 
 
@@ -345,7 +346,8 @@ def _options(o: dict) -> dict:
         limit = int(limit) if limit not in (None, "", 0, "0") else None
     except (TypeError, ValueError):
         limit = None
-    return {"gemini": bool(o.get("gemini")), "assess": bool(o.get("assess")), "assess_limit": limit}
+    return {"gemini": bool(o.get("gemini")), "situations": bool(o.get("situations", o.get("gemini"))),
+            "assess": bool(o.get("assess")), "assess_limit": limit}
 
 
 def _browse(raw: str) -> dict:

@@ -10,7 +10,7 @@ from . import media, scenes as scene_mod, whistle
 from .logs import log, step as mark_step
 from .config import Settings, match_dir
 
-STEP_VERSIONS = {"import": 1, "audio_whistle": 2, "motion": 1, "gemini_scan": 1, "scenes": 2, "clips": 1, "assessment": 1}
+STEP_VERSIONS = {"import": 1, "audio_whistle": 2, "motion": 1, "gemini_scan": 1, "scenes": 2, "clips": 1, "situations": 1, "assessment": 1}
 
 
 class Match:
@@ -130,6 +130,7 @@ def step_clips(m: Match, force: bool = False) -> dict:
         if i % 10 == 0:
             log(f"Clips {i}/{len(scs)}")
     used = {Path(sc["clip"]).name for sc in scs}
+    used |= {Path(x["clip"]).name for x in (m.result("situations") or {}).get("extra_scenes", []) if x.get("clip")}
     stale = [f for f in clips_dir.glob("*.mp4") if f.name not in used]
     for f in stale:                      # clips of scenes that no longer exist after a re-analysis
         f.unlink(missing_ok=True)
@@ -138,17 +139,73 @@ def step_clips(m: Match, force: bool = False) -> dict:
     return m.save("clips", {"scenes": scs}, t0)
 
 
+def step_situations(m: Match, s: Settings, use_ai: bool) -> dict:
+    from . import situation
+    t0 = time.time()
+    scs = m.result("clips")["scenes"]
+    if use_ai:
+        log(f"Situation pro Szene erkennen ({len(scs)} Szenen, {s.scan_model}) ...")
+    out, usage = situation.classify_scenes(scs, m.dir / "clips", m.step_dir("situations"), s, m.meta, window_key,
+                                           m.result("import")["duration_s"], use_ai)
+    counts: dict[str, int] = {}
+    for v in out.values():
+        counts[v["label"]] = counts.get(v["label"], 0) + 1
+    if counts:
+        log("Situationen: " + ", ".join(f"{n}× {k}" for k, n in sorted(counts.items(), key=lambda x: -x[1])))
+    extras = situation.extra_scenes(scs, out, window_key, m.result("import")["duration_s"])
+    proxy = m.step_dir("import") / "proxy.mp4"
+    for x in extras:
+        f = m.dir / "clips" / f"{window_key(x)}.mp4"
+        if not f.exists():
+            media.cut_clip(proxy, f, x["start"], x["end"])
+        x["clip"] = f"clips/{f.name}"
+        out[window_key(x)] = x["situation"]
+    if extras:
+        log(f"{len(extras)} weitere Vorfälle in Szenen-Clips gefunden – als eigene Szenen angelegt")
+    return m.save("situations", {"situations": out, "extra_scenes": extras, "usage": usage, "ai": use_ai}, t0)
+
+
+def all_scenes(m: Match) -> list[dict]:
+    """Scenes from the clips step plus extra incidents found by the situation step, numbered by time."""
+    scs = [dict(sc) for sc in m.result("clips")["scenes"]] + \
+          [dict(sc) for sc in (m.result("situations") or {}).get("extra_scenes", [])]
+    scs.sort(key=lambda sc: sc["t_event"])
+    for i, sc in enumerate(scs, 1):
+        sc["id"] = f"s{i:03d}"
+    return scs
+
+
+def _attach_situations(m: Match, scs: list[dict]) -> None:
+    sit = (m.result("situations") or {}).get("situations", {})
+    for sc in scs:
+        if window_key(sc) in sit:
+            sc["situation"] = sit[window_key(sc)]
+
+
+SKIP_ASSESS_MIN_CONF = 0.6
+
+
+def _routine(sc: dict) -> bool:
+    """Kick-off, goal kick, corner, throw-in, half-time ...: nothing for the referee to decide."""
+    v = sc.get("situation") or {}
+    return v.get("kind") == "routine" and v.get("situation") != "tor" and v.get("confidence", 0) >= SKIP_ASSESS_MIN_CONF
+
+
 def step_assess(m: Match, s: Settings, limit: int | None, force: bool = False) -> dict:
     from . import assess
     t0 = time.time()
     prev = {} if force else {window_key(sc): sc.get("ai") for sc in (m.result("assessment") or {}).get("scenes", [])}
-    scs = m.result("clips")["scenes"]
+    scs = all_scenes(m)
+    _attach_situations(m, scs)
     proxy = m.step_dir("import") / "proxy.mp4"
     usage_total = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0, "calls": 0}
-    done = 0
+    done = skipped = 0
     for sc in scs:
         if prev.get(window_key(sc)):
             sc["ai"] = prev[window_key(sc)]
+            continue
+        if _routine(sc):
+            skipped += 1
             continue
         if limit is not None and done >= limit:
             continue
@@ -159,16 +216,19 @@ def step_assess(m: Match, s: Settings, limit: int | None, force: bool = False) -
         done += 1
         m.save("assessment", {"scenes": scs, "usage": usage_total, "partial": True}, t0)  # nothing paid is lost on cancel
         log(f"Bewertet {sc['id']} ({sc['time_label']}): {sc['ai'].get('decision')} ({sc['ai'].get('confidence')})")
+    if skipped:
+        log(f"Ohne KI-Bewertung, weil Standardsituation (Anstoß, Abstoß, Einwurf …): {skipped} Szenen")
     return m.save("assessment", {"scenes": scs, "usage": usage_total}, t0)
 
 
 def publish(m: Match) -> Path:
     """Write the final scenes.json the review UI reads."""
-    scenes = m.result("clips")["scenes"]
+    scenes = all_scenes(m)
     ai = {window_key(sc): sc.get("ai") for sc in (m.result("assessment") or {}).get("scenes", []) if sc.get("ai")}
     for sc in scenes:                    # suggestions stay attached to their time window
         if window_key(sc) in ai:
             sc["ai"] = ai[window_key(sc)]
+    _attach_situations(m, scenes)
     out = {"match": m.meta, "video": m.result("import"), "scenes": scenes}
     out["video"] = {k: v for k, v in out["video"].items() if k != "source"}
     f = m.dir / "scenes.json"
@@ -185,7 +245,7 @@ def cleanup_original_copies(m: Match) -> None:
 
 
 def run_analysis(m: Match, video: Path, s: Settings, use_gemini: bool, use_assess: bool,
-                 assess_limit: int | None = None, force: bool = False) -> int:
+                 assess_limit: int | None = None, force: bool = False, use_situations: bool | None = None) -> int:
     """Full run used by CLI and web UI. Returns the number of scenes."""
     log(f"Spiel '{m.id}' – Daten in {m.dir}")
     if use_gemini or use_assess:
@@ -205,6 +265,8 @@ def run_analysis(m: Match, video: Path, s: Settings, use_gemini: bool, use_asses
     step_scenes(m, s, use_gemini)
     mark_step("clips")
     step_clips(m, force=force)
+    mark_step("situations")
+    step_situations(m, s, use_gemini if use_situations is None else use_situations)
     if use_assess:
         mark_step("assess")
         step_assess(m, s, limit=assess_limit, force=force)

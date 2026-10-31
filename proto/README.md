@@ -8,6 +8,7 @@ Erster Prototyp ohne Vercel und Supabase: Ein Veo-Video wird auf deinem PC analy
 | Pfiff-Erkennung über den Ton | lokal, nur CPU | – |
 | Bewegung im Bild (Spiel unterbrochen oder fortgesetzt) | lokal, nur CPU, ca. 2 min pro Spiel | – |
 | Kandidaten ohne Pfiff (Gemini sieht das ganze Spiel) | online, optional | ca. 1 $ pro Spiel (Flash-Lite ca. 0,40 $) |
+| Situation pro Szene: Tor, Abstoß, Eckstoß, Einwurf, Foul … (Gemini sieht jeden Clip) | online, optional | ca. 0,15 $ pro Spiel |
 | Bewertungsvorschlag pro Szene (Claude) | online, optional | ca. 1–2 $ pro Spiel |
 | Swipe-Sichtung | lokal im Browser | – |
 
@@ -98,6 +99,7 @@ Die Clip-Namen folgen dem Zeitfenster der Szene. Wird ein Spiel neu analysiert, 
 - Gemini sieht standardmäßig etwa ein Bild pro Sekunde; kurze Kontakte können fehlen.
 - Pfiff-Erkennung ist an einem echten Veo-Jugendspiel eingestellt (laute Kinderrufe im selben Frequenzbereich wie die Pfeife). Sie lernt pro Spiel die Tonhöhe der Schiri-Pfeife; fremde Pfeifen von Nachbarplätzen können trotzdem durchrutschen. Schwellen in `schiri/config.py` (`WhistleParams`).
 - Pfiffe, die kurz hintereinander kommen (Doppelpfiff, Pfiff plus Wiederanpfiff), werden zu einer Szene zusammengefasst.
+- Situation pro Szene: Anpfiff, Halbzeit und Spielende ergeben sich kostenlos aus dem Pfiff-Muster. Mit KI-Zugang schaut Gemini jeden Szenen-Clip an und benennt die Situation (Tor, Abstoß, Eckstoß, Einwurf, Freistoß, Foul …). Alle Szenen bleiben in der Liste; in der Sichtung lässt sich nach Situation filtern („Nur mögliche Entscheidungen“). Standardsituationen ohne Entscheidung (Anstoß, Abstoß, Eckstoß, Einwurf, Halbzeit) bekommen keinen bezahlten Bewertungsvorschlag. Sieht Gemini in einem Clip einen zweiten Vorfall (z. B. Zweikampf im Mittelfeld und zugleich im Strafraum), wird daraus eine eigene Szene. Ergebnisse werden pro Clip gespeichert, eine Neuauswertung kostet nichts extra.
 - Bewegung im Bild: Für jeden Pfiff wird geschätzt, ob das Spiel danach ruht (*Spiel unterbrochen*), vorher ruhte und danach läuft (*Spielfortsetzung*, z. B. Anstoß oder Freistoß) oder ob keine Ruhephase zu sehen ist (Vorteil, Halbzeit-/Schlusspfiff oder fremder Pfiff). Das ist nur ein Hinweis: auch zu zufälligen Zeitpunkten ruht das Bild oft. In der Sichtung lassen sich Spielfortsetzungen ausblenden; standardmäßig bleiben sie sichtbar.
 - Kein Login, keine Rollenrechte – nur für den eigenen PC und das Heimnetz gedacht.
 

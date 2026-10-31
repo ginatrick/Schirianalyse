@@ -57,6 +57,10 @@ def _facts(scene: dict, meta: dict | None = None) -> str:
             lines.append(f"Bewegungsanalyse (nur Hinweis): {hint}")
     else:
         lines.append("Kein Pfiff erkannt. Die Szene wurde als Verdachtsfall vorgeschlagen.")
+    sit = scene.get("situation") or {}
+    if sit.get("label"):
+        lines.append(f"Situation laut Videoanalyse (nur Hinweis): {sit['label']}"
+                     + (f" – {sit['description']}" if sit.get("description") else "") + ".")
     c = scene.get("candidate")
     if c:
         lines.append(f"Hinweis aus der Videosuche: {c.get('type')} – {c.get('description')} (Position im Bild: {c.get('location')}).")

@@ -16,6 +16,7 @@ STEP_LABELS = {
     "gemini": "Gemini sucht Szenen",
     "scenes": "Szenen bilden",
     "clips": "Clips schneiden",
+    "situations": "Situationen erkennen",
     "assess": "KI-Bewertung",
     "publish": "Abschluss",
 }

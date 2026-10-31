@@ -33,6 +33,7 @@ h2{font-size:20px;margin:4px 0 12px}
 /* list */
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
 .toolbar select{width:auto;min-width:220px}
+.rhead select{width:auto;max-width:100%}
 .summary{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:12px}
 .mcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:10px 16px}
 @media (max-width:640px){.mcard{grid-template-columns:1fr}}
@@ -76,7 +77,7 @@ video{display:block;width:100%;max-height:62vh;background:#000}
 .body{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:14px 16px}
 @media (max-width:720px){.body{grid-template-columns:1fr}}
 .badge{border-radius:999px;padding:2px 10px;font-size:13px;background:var(--chip)}.badge.warn{background:var(--warn);color:#fff}
-.hide{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);white-space:nowrap}
+.badge.sit.decision{background:var(--ink);color:var(--bg)}.badge.sit.routine{background:transparent;border:1px solid var(--line)}
 .badge.whistled{background:var(--accent);color:var(--accent-ink)}.badge.candidate{background:var(--warn);color:#fff}
 .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
 .time{font-size:22px;margin:4px 0;font-variant-numeric:tabular-nums;font-weight:650}
@@ -265,6 +266,7 @@ async function viewForm(id){
     </fieldset>
     ${id ? "" : `<fieldset><legend>KI (optional)</legend>
       <label class="check"><input type="checkbox" name="gemini" ${CFG.scan_available ? "checked" : "disabled"}><span>Szenen ohne Pfiff suchen <span class="muted">– ${esc(CFG.scan_model)}, das Video geht an den KI-Anbieter, ca. 1 $ pro Spiel</span></span></label>
+      <label class="check"><input type="checkbox" name="situations" ${CFG.scan_available ? "checked" : "disabled"}><span>Situation pro Szene erkennen <span class="muted">– Tor, Abstoß, Eckstoß, Einwurf, Foul …; ${esc(CFG.scan_model)} sieht jeden Clip, ca. 0,15 $ pro Spiel</span></span></label>
       <label class="check"><input type="checkbox" name="assess" id="assess" ${CFG.assess_available ? "checked" : "disabled"}><span>Bewertungsvorschläge pro Szene <span class="muted">– ${esc(CFG.assess_model)}, bei Unsicherheit ${esc(CFG.assess_model_strong)}, ca. 1–2 $ pro Spiel</span></span></label>
       <label class="f" style="max-width:260px">Höchstens so viele Szenen bewerten<input type="number" min="0" name="assess_limit" placeholder="alle"></label>
       ${CFG.scan_available || CFG.assess_available ? "" : `<p class="muted">Kein API-Key gefunden. <code>OPENROUTER_API_KEY</code> in <code>.env</code> eintragen und den Server neu starten.</p>`}
@@ -295,7 +297,7 @@ async function viewForm(id){
     $("#submit").disabled = true; $("#ferr").textContent = "";
     try {
       if(id){ await api(`/api/matches/${encodeURIComponent(id)}/meta`, body); }
-      else { body.video_path = o.video_path; body.options = {gemini: !!o.gemini, assess: !!o.assess, assess_limit: o.assess_limit}; await api("/api/matches", body); }
+      else { body.video_path = o.video_path; body.options = {gemini: !!o.gemini, situations: !!o.situations, assess: !!o.assess, assess_limit: o.assess_limit}; await api("/api/matches", body); }
       location.hash = "#/";
     } catch(err){ $("#ferr").textContent = err.message; $("#submit").disabled = false; }
   };
@@ -336,26 +338,36 @@ async function viewReview(id){
     <b>${esc(m.home || "")} – ${esc(m.away || "")}</b><span class="muted">${esc(fmtDate(m.date))} · SR ${esc(m.referee || "?")}</span></div>
     <div class="rhead"><div class="seg" id="role"><button data-v="self">Selbstbewertung</button><button data-v="observer">Beobachter</button></div>
     <div class="seg" id="filter"><button data-v="open">Offen</button><button data-v="all">Alle</button><button data-v="whistled">Pfiffe</button><button data-v="candidate">Verdacht</button></div>
-    <label class="hide" id="hideWrap" hidden><input type="checkbox" id="hideRestart"> <span id="hideLabel"></span></label>
+    <select id="sitFilter" aria-label="Situation" hidden></select>
     <span class="progress" id="progress"></span></div><div id="stage"></div>`;
   seg("#role", S.role, v => { S.role = v; store.set("schiri-role", v); rebuild(true); });
   seg("#filter", S.filter, v => { S.filter = v; rebuild(true); });
-  const nRestart = S.data.scenes.filter(isRestart).length;
-  if(nRestart){
-    $("#hideWrap").hidden = false; $("#hideLabel").textContent = `Spielfortsetzungen ausblenden (${nRestart})`;
-    S.hideRestart = store.get("schiri-hide-restart", "0") === "1"; $("#hideRestart").checked = S.hideRestart;
-    $("#hideRestart").onchange = e => { S.hideRestart = e.target.checked; store.set("schiri-hide-restart", S.hideRestart ? "1" : "0"); rebuild(true); };
-  } else S.hideRestart = false;
+  const labels = {};
+  S.data.scenes.forEach(sc => { const l = sitLabel(sc); if(l) labels[l] = (labels[l] || 0) + 1; });
+  const nDec = S.data.scenes.filter(isDecision).length, nAll = S.data.scenes.length;
+  if(Object.keys(labels).length || nDec < nAll){
+    const opts = [["all", `Alle Situationen (${nAll})`], ["decision", `Nur mögliche Entscheidungen (${nDec})`],
+      ...Object.entries(labels).sort((a, b) => b[1] - a[1]).map(([l, n]) => ["l:" + l, `${l} (${n})`])];
+    S.sit = store.get("schiri-sit", "all"); if(!opts.some(o => o[0] === S.sit)) S.sit = "all";
+    $("#sitFilter").innerHTML = opts.map(([v, t]) => `<option value="${esc(v)}" ${v === S.sit ? "selected" : ""}>${esc(t)}</option>`).join("");
+    $("#sitFilter").hidden = false;
+    $("#sitFilter").onchange = e => { S.sit = e.target.value; store.set("schiri-sit", S.sit); rebuild(true); };
+  } else S.sit = "all";
   document.onkeydown = keys;
   rebuild(true);
 }
+const SRC = {audio: "Ton", gemini: "Gemini", "gemini-clip": "Gemini (im Clip)"};
 const isRestart = sc => sc.type === "whistled" && sc.video && sc.video.phase === "restart";
+const sitLabel = sc => sc.situation && sc.situation.label || "";
+/* routine = normal flow of play (Anstoß, Abstoß, Einwurf, Tor …); without a situation the picture motion decides */
+const isDecision = sc => sc.situation ? sc.situation.kind !== "routine" : !isRestart(sc);
+const sitMatch = sc => !S.sit || S.sit === "all" ? true : S.sit === "decision" ? isDecision(sc) : sitLabel(sc) === S.sit.slice(2);
 const VIDEO_CLASS = {stopped: "", restart: "", running: "warn", unclear: ""};
 function seg(sel, val, cb){ const set = v => document.querySelectorAll(sel+" button").forEach(b => b.classList.toggle("on", b.dataset.v === v)); set(val);
   document.querySelectorAll(sel+" button").forEach(b => b.onclick = () => { set(b.dataset.v); cb(b.dataset.v); }); }
 function rebuild(reset){
   const all = S.data.scenes;
-  S.list = all.filter(sc => (S.filter === "all" || (S.filter === "open" ? !rev(sc) : sc.type === S.filter)) && !(S.hideRestart && isRestart(sc)));
+  S.list = all.filter(sc => (S.filter === "all" || (S.filter === "open" ? !rev(sc) : sc.type === S.filter)) && sitMatch(sc));
   if(reset) S.idx = 0;
   S.idx = Math.min(S.idx, Math.max(0, S.list.length - 1));
   $("#progress").textContent = `${all.filter(rev).length}/${all.length} gesichtet`;
@@ -378,8 +390,10 @@ function render(){
       <button id="back">−1 Bild</button><button id="fwd">+1 Bild</button>
       <span class="muted">${sc.type==="whistled" ? "Pfiff" : "Szene"} bei ${(sc.t_event - sc.start).toFixed(1).replace(".", ",")} s im Clip</span></div>
     <div class="body"><div>
-        <div class="meta"><span class="badge ${sc.type}">${sc.type==="whistled" ? "Gepfiffen" : "Kein Pfiff · Verdacht"}</span>${sc.video ? `<span class="badge ${VIDEO_CLASS[sc.video.phase]||""}" title="Aus der Bewegung im Bild geschätzt – nur ein Hinweis">${esc(sc.video.label)}</span>` : ""}<span class="badge">${esc(sc.detected_by.join(" + "))}</span><span class="badge">${S.idx+1} / ${S.list.length}</span></div>
+        <div class="meta"><span class="badge ${sc.type}">${sc.type==="whistled" ? "Gepfiffen" : "Kein Pfiff · Verdacht"}</span>${sc.situation ? `<span class="badge sit ${sc.situation.kind}" title="${sc.situation.source === "regel" ? "aus dem Pfiff-Muster" : "von " + esc(sc.situation.model || "Gemini") + ", Sicherheit " + Math.round((sc.situation.confidence||0)*100) + " %"}">${esc(sc.situation.label)}</span>` : ""}${sc.video ? `<span class="badge ${VIDEO_CLASS[sc.video.phase]||""}" title="Aus der Bewegung im Bild geschätzt – nur ein Hinweis">${esc(sc.video.label)}</span>` : ""}<span class="badge">${esc(sc.detected_by.map(d => SRC[d] || d).join(" + "))}</span><span class="badge">${S.idx+1} / ${S.list.length}</span></div>
         <div class="time">${esc(sc.time_label)} <span class="muted">(${sc.minute + 1}. Minute im Video)</span></div>
+        ${sc.situation && sc.situation.description && sc.situation.description !== (c && c.description) ? `<div>${esc(sc.situation.description)}</div>` : ""}
+        ${(sc.notes || []).length ? `<div class="muted">${esc(sc.notes.join(" · "))}</div>` : ""}
         ${c ? `<div><b>${esc(CTYPE[c.type]||c.type)}</b> – ${esc(c.description)} ${c.location ? `<span class="muted">· ${esc(c.location)}</span>` : ""}</div>` : ""}
         ${sc.whistle ? `<div class="muted">${(sc.whistle.count||1) > 1 ? `${sc.whistle.count} Pfiffe, ` : "Pfiff "}${sc.whistle.duration.toFixed(1)} s · ${Math.round(sc.whistle.peak_hz)} Hz · Erkennung ${Math.round(sc.whistle.confidence*100)} %</div>` : ""}
         ${r ? `<div class="muted" style="margin-top:8px">Bereits gesichtet: ${esc(actionLabel(r))}</div>` : ""}

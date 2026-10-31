@@ -45,7 +45,8 @@ def cmd_analyze(args) -> None:
 
     use_gemini = not args.no_gemini and s.scan_available()
     use_assess = not args.no_assess and s.assess_available()
-    pipeline.run_analysis(m, video, s, use_gemini, use_assess, args.assess_limit, args.force)
+    use_situations = not args.no_situations and s.scan_available()
+    pipeline.run_analysis(m, video, s, use_gemini, use_assess, args.assess_limit, args.force, use_situations)
     pipeline.log("Sichtung starten mit: python -m schiri serve")
 
 
@@ -87,6 +88,7 @@ def main(argv: list[str] | None = None) -> None:
     a.add_argument("--pitch-width", type=float, help="Feldbreite in Metern (gemessen)")
     a.add_argument("--no-gemini", action="store_true", help="keine Kandidatensuche mit Gemini")
     a.add_argument("--no-assess", action="store_true", help="keine Bewertungsvorschläge mit Claude")
+    a.add_argument("--no-situations", action="store_true", help="Situation pro Szene (Tor, Abstoß …) nicht mit Gemini erkennen")
     a.add_argument("--assess-limit", type=int, default=None, help="höchstens N Szenen bewerten (Kosten testen)")
     a.add_argument("--force", action="store_true", help="alle Schritte neu rechnen")
     a.set_defaults(func=cmd_analyze)
